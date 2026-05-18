@@ -92,7 +92,7 @@ One guideline only (start with Mammakarzinom). Validate output before proceeding
 
 - LLM enrichment via Gemini Flash: diseases, drugs, procedures, patient_subgroups, contextual headers, hypothetical questions
 - Embedding: `text-embedding-3-large` (3072 dim)
-- Milvus schema: dense collection + BM25 sparse collection
+- Milvus configured for hybrid search: dense vector similarity + sparse keyword (BM25) search over the same corpus, with metadata filtering
 - Push enriched chunks + vectors + metadata to Milvus
 
 **Milestone:** 10 test queries return relevant chunks with correct metadata. BM25 confirmed working.
@@ -140,7 +140,7 @@ One guideline only (start with Mammakarzinom). Validate output before proceeding
 - Self-query metadata extraction (Gemini Flash)
 - Intent router (factual / recommendation / comparison / external)
 - Output guardrail: faithfulness check, PII scan
-- Confidence check + multi-query escalation (HyDE deferred to Phase 11A)
+- Confidence check: lightweight signal only — based on reranker score threshold or retrieved-chunk count, not an additional LLM call. Triggers multi-query escalation. HyDE deferred to Phase 11A.
 - `lookup_empfehlung` tool — pulled forward from Phase 5; directly tied to indexed Empfehlung blocks, useful for early validation
 - In-memory state (Postgres persistence deferred to Phase 6)
 
@@ -193,8 +193,9 @@ One guideline only (start with Mammakarzinom). Validate output before proceeding
 - LangGraph `PostgresSaver` replacing in-memory state
 - Summary buffer for long sessions
 - Per-user history, saved searches, feedback persistence
+- Before OAuth exists (Phase 7), the session key is the API key from Phase 3 — conversation state is already partitioned per key. Phase 7 replaces that placeholder identity with a real OAuth-derived user record without changing the persistence model.
 
-**Milestone:** Conversation history persists across sessions.
+**Milestone:** Conversation history persists across sessions, keyed by API key.
 
 ---
 
@@ -283,6 +284,7 @@ One guideline only (start with Mammakarzinom). Validate output before proceeding
 | Dual-layer answer faithfulness — plain-language layer risks being a shallow rephrase | MEDIUM | Invest in prompt design in Phase 2; smoke-test both layers against the same source chunks |
 | Langfuse local setup (Next.js app with its own Postgres) | MEDIUM | Use Langfuse Cloud if local install adds friction |
 | Business logic drifting into FastAPI routes or Streamlit callbacks | MEDIUM | Enforce layering from Phase 3 onward: routes delegate, callbacks delegate |
+| Bibliography/reference-link accuracy — in-text markers (`[1189]`) may fail to resolve to parsed bibliography entries due to PDF formatting inconsistencies | MEDIUM | Validate reference linking on one guideline before Phase 0C rollout; store unresolved markers with a flag rather than dropping them |
 
 ---
 
