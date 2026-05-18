@@ -24,6 +24,8 @@ class Chunk:
     page_start: int | None = None
     page_end: int | None = None
     chunk_index_in_parent: int | None = None
+    source_filename: str = ""
+    is_current: bool = True
 
 
 def _make_id() -> str:
