@@ -1,9 +1,15 @@
 import re
 from pathlib import Path
+from typing import TypedDict
 import fitz  # pymupdf
 
 
-def extract_pages(pdf_path: Path) -> list[dict]:
+class PageDict(TypedDict):
+    page_number: int
+    text: str
+
+
+def extract_pages(pdf_path: Path) -> list[PageDict]:
     """Extract text page by page from a PDF. Returns list of {page_number, text}."""
     pages = []
     with fitz.open(str(pdf_path)) as doc:
@@ -54,13 +60,12 @@ def clean_text(text: str) -> str:
     return "\n".join(merged)
 
 
-def _is_heading(line: str) -> bool:
-    stripped = line.strip()
-    # Numbered section headings (1, 1.2, 3.4.1)
-    if re.match(r"^\d+(\.\d+)*\s+\S", stripped):
+def _is_heading(stripped_line: str) -> bool:
+    # Expects a pre-stripped string. Numbered section headings (1, 1.2, 3.4.1)
+    if re.match(r"^\d+(\.\d+)*\s+\S", stripped_line):
         return True
     # Recommendation labels: Empfehlung X.Y or Empfehlungsgrad / Evidenzlevel markers
-    if re.match(r"^(Empfehlung|Empfehlungsgrad|Evidenzlevel)\b", stripped, re.IGNORECASE):
+    if re.match(r"^(Empfehlung|Empfehlungsgrad|Evidenzlevel)\b", stripped_line, re.IGNORECASE):
         return True
     return False
 

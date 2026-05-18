@@ -27,9 +27,9 @@ def test_clean_text_repairs_german_hyphenation():
     assert "Behandlung" in result
 
 def test_clean_text_merges_broken_paragraph_lines():
-    raw = "Dies ist ein langer\nSatz der weitergeht."
+    raw = "Dies ist ein langer\nfortgesetzter Satz."
     result = clean_text(raw)
-    assert "langer Satz" in result
+    assert "langer fortgesetzter" in result
 
 def test_clean_text_preserves_section_numbers():
     raw = "1.2 Diagnostik\nText"
@@ -45,5 +45,14 @@ def test_clean_text_preserves_empfehlung_label():
     assert not any("Empfehlung 1.1 Frauen" in l for l in lines)
 
 def test_extract_pages_raises_on_missing_file():
-    with pytest.raises(Exception):  # fitz raises RuntimeError or FileNotFoundError
+    # pymupdf.FileNotFoundError is a subclass of RuntimeError
+    with pytest.raises(RuntimeError):
         extract_pages(Path("nonexistent_file.pdf"))
+
+def test_clean_text_does_not_merge_after_sentence_end():
+    raw = "Weitere Informationen.\nEmpfehlung 1.2"
+    result = clean_text(raw)
+    lines = result.splitlines()
+    assert any("Weitere Informationen." in l for l in lines)
+    assert any("Empfehlung 1.2" in l for l in lines)
+    assert not any("Informationen. Empfehlung" in l for l in lines)
