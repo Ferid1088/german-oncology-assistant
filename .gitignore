@@ -20,3 +20,7 @@ venv/
 
 # Data (large files — index in Milvus, don't commit)
 data/chunks/
+docs/knowledge_base/
+
+# IDE / local tool settings
+.claude/
