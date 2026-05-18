@@ -14,4 +14,4 @@ def test_milvus_store_upsert_calls_insert(mocker):
         "recommendation_grade": "",
         "is_leaf": True,
     }])
-    mock_client.insert.assert_called_once()
+    mock_client.upsert.assert_called_once()

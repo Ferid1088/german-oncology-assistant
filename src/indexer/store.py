@@ -37,7 +37,7 @@ class MilvusStore:
 
     def upsert(self, records: list[dict]) -> None:
         """Insert or update records. Each dict must have chunk_id and dense_vector."""
-        self.client.insert(collection_name=self.collection_name, data=records)
+        self.client.upsert(collection_name=self.collection_name, data=records)
 
     def drop(self) -> None:
         if self.client.has_collection(self.collection_name):
