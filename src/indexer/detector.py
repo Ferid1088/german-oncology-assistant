@@ -1,11 +1,11 @@
 import re
 from dataclasses import dataclass
 
-HEADING_RE = re.compile(r"^(\d+(?:\.\d+)*)\s+\S")
+HEADING_RE = re.compile(r"^(\d(?:\.\d{1,2})*)\s+[A-ZÄÖÜ]")
 EMPFEHLUNG_RE = re.compile(r"^Empfehlung\s+(\d+(?:\.\d+)+)", re.IGNORECASE)
 GRADE_RE = re.compile(r"Empfehlungsgrad\s*:\s*([A-Z0])", re.IGNORECASE)
 EVIDENCE_RE = re.compile(r"Evidenzlevel\s*:\s*(\S+)", re.IGNORECASE)
-BIB_RE = re.compile(r"^\[?(\d+)\]?\s*\S")
+BIB_RE = re.compile(r"^\[(\d+)\]\s*\S")
 
 
 @dataclass
@@ -57,7 +57,7 @@ def detect_structure(text: str) -> list[StructuralUnit]:
                 gm = GRADE_RE.search(bl)
                 em = EVIDENCE_RE.search(bl)
                 if gm:
-                    grade = gm.group(1)
+                    grade = gm.group(1).upper()
                 if em:
                     evidence = em.group(1)
                 block_lines.append(bl)
@@ -103,4 +103,4 @@ def detect_structure(text: str) -> list[StructuralUnit]:
 
 
 def _looks_like_bib(line: str) -> bool:
-    return bool(re.match(r"^\[?\d+\]?\s+\w+.+\d{4}", line))
+    return bool(re.match(r"^\[\d+\]\s+\w+.+\d{4}", line))
