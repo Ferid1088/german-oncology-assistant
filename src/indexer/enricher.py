@@ -1,15 +1,19 @@
+import copy
 import json
 import os
 from openai import OpenAI
 
 CHEAP_MODEL = os.getenv("CHEAP_MODEL", "google/gemini-2.5-flash")
-EMPTY_SEMANTIC = {"diseases": [], "drugs": [], "procedures": [], "patient_subgroups": [], "risk_category": ""}
+EMPTY_SEMANTIC = {"diseases": [], "drugs": [], "procedures": [], "patient_subgroups": [], "risk_category": []}
 
 
 def _client() -> OpenAI:
+    api_key = os.environ.get("OPENROUTER_API_KEY")
+    if not api_key:
+        raise ValueError("OPENROUTER_API_KEY environment variable is not set")
     return OpenAI(
         base_url="https://openrouter.ai/api/v1",
-        api_key=os.environ["OPENROUTER_API_KEY"],
+        api_key=api_key,
     )
 
 
@@ -33,7 +37,8 @@ def generate_contextual_header(
         messages=[{"role": "user", "content": prompt}],
         max_tokens=150,
     )
-    return resp.choices[0].message.content.strip()
+    content = resp.choices[0].message.content
+    return content.strip() if content else ""
 
 
 def generate_hypothetical_questions(
@@ -52,8 +57,11 @@ def generate_hypothetical_questions(
         messages=[{"role": "user", "content": prompt}],
         max_tokens=200,
     )
-    lines = resp.choices[0].message.content.strip().splitlines()
-    return [l.strip("- •123.").strip() for l in lines if l.strip()]
+    content = resp.choices[0].message.content
+    if not content:
+        return []
+    lines = content.strip().splitlines()
+    return [l.strip("- •0123456789.").strip() for l in lines if l.strip()]
 
 
 def extract_semantic_metadata(
@@ -64,7 +72,7 @@ def extract_semantic_metadata(
     prompt = (
         "Extrahiere semantische Metadaten aus diesem deutschen Leitlinien-Abschnitt. "
         "Antworte ausschließlich mit validem JSON (keine Erklärungen):\n"
-        '{"diseases": [], "drugs": [], "procedures": [], "patient_subgroups": [], "risk_category": ""}\n\n'
+        '{"diseases": [], "drugs": [], "procedures": [], "patient_subgroups": [], "risk_category": []}\n\n'
         f"Abschnitt:\n{chunk_text[:1000]}"
     )
     resp = c.chat.completions.create(
@@ -73,12 +81,15 @@ def extract_semantic_metadata(
         max_tokens=300,
     )
     try:
-        raw = resp.choices[0].message.content.strip()
-        # Strip markdown code fences if present
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
-        return json.loads(raw)
-    except (json.JSONDecodeError, IndexError):
-        return dict(EMPTY_SEMANTIC)
+        raw = resp.choices[0].message.content
+        if raw is None:
+            return copy.deepcopy(EMPTY_SEMANTIC)
+        raw = raw.strip()
+        # Strip markdown code fences robustly
+        raw = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+        raw_parsed = json.loads(raw)
+        if not isinstance(raw_parsed, dict):
+            return copy.deepcopy(EMPTY_SEMANTIC)
+        return {**copy.deepcopy(EMPTY_SEMANTIC), **raw_parsed}
+    except (json.JSONDecodeError, IndexError, AttributeError):
+        return copy.deepcopy(EMPTY_SEMANTIC)

@@ -33,7 +33,7 @@ def test_generate_hypothetical_questions_returns_list():
 
 
 def test_extract_semantic_metadata_returns_dict():
-    client = _mock_client('{"diseases": ["Mammakarzinom"], "drugs": [], "procedures": ["MRT"], "patient_subgroups": [], "risk_category": ""}')
+    client = _mock_client('{"diseases": ["Mammakarzinom"], "drugs": [], "procedures": ["MRT"], "patient_subgroups": [], "risk_category": []}')
     meta = extract_semantic_metadata(
         client=client,
         chunk_text="MRT ist bei Mammakarzinom-Patientinnen indiziert.",
@@ -45,4 +45,4 @@ def test_extract_semantic_metadata_returns_dict():
 def test_semantic_metadata_returns_empty_on_parse_failure():
     client = _mock_client("invalid json {{")
     meta = extract_semantic_metadata(client=client, chunk_text="text")
-    assert meta == {"diseases": [], "drugs": [], "procedures": [], "patient_subgroups": [], "risk_category": ""}
+    assert meta == {"diseases": [], "drugs": [], "procedures": [], "patient_subgroups": [], "risk_category": []}
