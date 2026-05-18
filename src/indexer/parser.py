@@ -5,12 +5,11 @@ import fitz  # pymupdf
 
 def extract_pages(pdf_path: Path) -> list[dict]:
     """Extract text page by page from a PDF. Returns list of {page_number, text}."""
-    doc = fitz.open(str(pdf_path))
     pages = []
-    for i, page in enumerate(doc):
-        text = page.get_text("text")
-        pages.append({"page_number": i + 1, "text": text})
-    doc.close()
+    with fitz.open(str(pdf_path)) as doc:
+        for i, page in enumerate(doc):
+            text = page.get_text("text")
+            pages.append({"page_number": i + 1, "text": text})
     return pages
 
 
@@ -22,12 +21,19 @@ def clean_text(text: str) -> str:
     - Strip trailing whitespace per line
     - Preserve section numbers and Empfehlung labels
     """
-    # Repair hyphenation: "Behand-\nlung" -> "Behandlung"
-    text = re.sub(r"(\w)-\n(\w)", r"\1\2", text)
+    # Only repair hyphenation when both sides are lowercase German letters — this is the
+    # soft-hyphenation pattern for compound words. Uppercase right-hand side means a new
+    # capitalised word or proper noun; numeric left-hand side means a range, not a compound.
+    text = re.sub(r"([a-zäöüß])-\n([a-zäöüß])", r"\1\2", text)
 
     lines = text.splitlines()
     merged: list[str] = []
     i = 0
+    # Merge continuation lines pair-by-pair. German PDF extraction frequently wraps
+    # prose at ~80 chars; we join the current line with its successor when neither
+    # looks like a structural boundary. Running prose across 3+ lines is handled
+    # implicitly: after merging lines i and i+1, the cursor advances to i+2 and
+    # the same check applies there.
     while i < len(lines):
         line = lines[i].rstrip()
         if (
@@ -49,7 +55,14 @@ def clean_text(text: str) -> str:
 
 
 def _is_heading(line: str) -> bool:
-    return bool(re.match(r"^\d+(\.\d+)*\s+\S", line.strip()))
+    stripped = line.strip()
+    # Numbered section headings (1, 1.2, 3.4.1)
+    if re.match(r"^\d+(\.\d+)*\s+\S", stripped):
+        return True
+    # Recommendation labels: Empfehlung X.Y or Empfehlungsgrad / Evidenzlevel markers
+    if re.match(r"^(Empfehlung|Empfehlungsgrad|Evidenzlevel)\b", stripped, re.IGNORECASE):
+        return True
+    return False
 
 
 def _ends_sentence(line: str) -> bool:

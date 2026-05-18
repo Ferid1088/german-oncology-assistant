@@ -1,4 +1,5 @@
 import pytest
+from pathlib import Path
 from src.indexer.parser import extract_pages, clean_text
 
 def test_extract_pages_returns_list_of_page_dicts(sample_pdf_path):
@@ -34,3 +35,15 @@ def test_clean_text_preserves_section_numbers():
     raw = "1.2 Diagnostik\nText"
     result = clean_text(raw)
     assert "1.2 Diagnostik" in result
+
+def test_clean_text_preserves_empfehlung_label():
+    raw = "Empfehlung 1.1\nFrauen sollen beraten werden."
+    result = clean_text(raw)
+    lines = result.splitlines()
+    assert any("Empfehlung 1.1" in l for l in lines)
+    # The label must remain on its own line, not merged with the next line
+    assert not any("Empfehlung 1.1 Frauen" in l for l in lines)
+
+def test_extract_pages_raises_on_missing_file():
+    with pytest.raises(Exception):  # fitz raises RuntimeError or FileNotFoundError
+        extract_pages(Path("nonexistent_file.pdf"))
