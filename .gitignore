@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+
+# Env
+.env
+.venv/
+venv/
+
+# Tools
+.pytest_cache/
+.DS_Store
+.mypy_cache/
+.ruff_cache/
+
+# Data (large files — index in Milvus, don't commit)
+data/chunks/

@@ -1,10 +1,9 @@
-import os
 import pytest
 from pathlib import Path
 
 @pytest.fixture
 def sample_pdf_path() -> Path:
-    return Path("docs/knowledge_base/mammakarzinom_v4.4.pdf")
+    return Path(__file__).parent.parent / "docs/knowledge_base/mammakarzinom_v4.4.pdf"
 
 @pytest.fixture
 def sample_text() -> str:
