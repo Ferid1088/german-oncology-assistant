@@ -85,9 +85,10 @@ def build_chunks(
         if unit.kind == "heading":
             flush_prose()
             depth = unit.section_number.count(".") + 1
+            if depth == 1:
+                current_root_id = None  # reset before creating this chunk — depth-1 chunks have no root parent
             current_section_path = current_section_path[: depth - 1] + [unit.section_number]
             current_section_title = unit.text
-            # Create parent chunk for this section
             parent = Chunk(
                 chunk_id=_make_id(),
                 guideline_id=guideline_id,
@@ -95,16 +96,16 @@ def build_chunks(
                 text=unit.text,
                 chunk_type="section",
                 is_leaf=False,
+                root_chunk_id=current_root_id,  # now None for all depth-1 headings
                 section_path=list(current_section_path),
                 section_title=current_section_title,
-                root_chunk_id=current_root_id,
                 page_start=page_start,
                 page_end=page_end,
             )
             chunks.append(parent)
             current_parent_id = parent.chunk_id
             if depth == 1:
-                current_root_id = parent.chunk_id
+                current_root_id = parent.chunk_id  # descendants of this section will use this as root
 
         elif unit.kind == "empfehlung":
             flush_prose()

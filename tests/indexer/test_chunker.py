@@ -54,3 +54,17 @@ def test_root_chunk_id_tracks_top_level_section():
     leaves = [c for c in chunks if c.is_leaf]
     for leaf in leaves:
         assert leaf.root_chunk_id == top.chunk_id
+
+
+def test_root_chunk_id_resets_for_each_top_level_section():
+    text = "1 Alpha\n\n1.1 Sub\n\nText unter Alpha.\n\n2 Beta\n\nText unter Beta.\n"
+    chunks = build_chunks("mamma", "1.0", text)
+    # Find the two top-level section chunks
+    sec1 = next(c for c in chunks if not c.is_leaf and c.section_path == ["1"])
+    sec2 = next(c for c in chunks if not c.is_leaf and c.section_path == ["2"])
+    # Both depth-1 chunks should have root_chunk_id=None
+    assert sec1.root_chunk_id is None
+    assert sec2.root_chunk_id is None
+    # Prose under section 2 should have root_chunk_id == sec2.chunk_id
+    beta_leaves = [c for c in chunks if c.is_leaf and "2" in c.section_path]
+    assert all(leaf.root_chunk_id == sec2.chunk_id for leaf in beta_leaves)
