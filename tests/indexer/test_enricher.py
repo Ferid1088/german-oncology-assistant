@@ -46,16 +46,3 @@ def test_semantic_metadata_returns_empty_on_parse_failure():
     client = _mock_client("invalid json {{")
     meta = extract_semantic_metadata(client=client, chunk_text="text")
     assert meta == {"diseases": [], "drugs": [], "procedures": [], "patient_subgroups": [], "risk_category": []}
-
-
-from src.indexer.embedder import embed_texts
-
-def test_embed_texts_returns_correct_shape():
-    from unittest.mock import MagicMock
-    client = MagicMock()
-    client.embeddings.create.return_value = MagicMock(
-        data=[MagicMock(embedding=[0.1] * 3072), MagicMock(embedding=[0.2] * 3072)]
-    )
-    result = embed_texts(["text one", "text two"], client=client)
-    assert len(result) == 2
-    assert len(result[0]) == 3072

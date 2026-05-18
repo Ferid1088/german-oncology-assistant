@@ -22,5 +22,6 @@ def embed_texts(texts: list[str], client: OpenAI | None = None) -> list[list[flo
     for i in range(0, len(texts), EMBED_BATCH_SIZE):
         batch = texts[i : i + EMBED_BATCH_SIZE]
         resp = c.embeddings.create(model=EMBEDDING_MODEL, input=batch)
-        all_embeddings.extend([item.embedding for item in resp.data])
+        sorted_data = sorted(resp.data, key=lambda item: item.index)
+        all_embeddings.extend([item.embedding for item in sorted_data])
     return all_embeddings
