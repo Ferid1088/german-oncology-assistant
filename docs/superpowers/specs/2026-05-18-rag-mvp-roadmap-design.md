@@ -50,8 +50,11 @@ MVP does NOT require: OAuth, Redis cache, Ragas runner, A/B eval page, analytics
 ```
 F1: Indexing Pipeline
     └── F2: Retrieval Engine
-            ├── F4: Tools (search_guidelines, lookup_empfehlung, compare, drug_class)
-            │       └── F3: LangGraph State Machine
+            ├── F4 (retrieval tools): search_guidelines, lookup_empfehlung,
+            │   compare_guidelines, drug_class_lookup
+            │       └── F3: LangGraph State Machine ←── also receives:
+            │               │   F4 (standalone tools): calculate_bmi, pubmed_search
+            │               │   (these do not depend on F2)
             │               ├── F5: FastAPI Backend
             │               │       ├── F6: Auth + User Roles
             │               │       ├── F7: Memory + State  (needs Postgres)
