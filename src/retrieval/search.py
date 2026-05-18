@@ -1,6 +1,6 @@
 import os
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pymilvus import MilvusClient
 from src.indexer.embedder import embed_texts
 
