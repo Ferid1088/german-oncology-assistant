@@ -41,7 +41,7 @@ def clean_text(text: str) -> str:
     # implicitly: after merging lines i and i+1, the cursor advances to i+2 and
     # the same check applies there.
     while i < len(lines):
-        line = lines[i].rstrip()
+        line = lines[i].strip()
         if (
             i + 1 < len(lines)
             and line
