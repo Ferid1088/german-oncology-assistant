@@ -3,7 +3,6 @@ from dataclasses import dataclass, field
 from src.indexer.detector import detect_structure
 
 TARGET_TOKENS = 550       # middle of 400-700 range
-MAX_TOKENS = 700
 OVERLAP_TOKENS = 70       # ~12%
 
 
@@ -13,7 +12,7 @@ class Chunk:
     guideline_id: str
     guideline_version: str
     text: str
-    chunk_type: str           # prose | empfehlung | table | heading
+    chunk_type: str           # section | recommendation | evidence | rationale | table
     is_leaf: bool
     parent_chunk_id: str | None = None
     root_chunk_id: str | None = None
@@ -24,10 +23,7 @@ class Chunk:
     evidence_level: str = ""
     page_start: int | None = None
     page_end: int | None = None
-
-
-def _approx_tokens(text: str) -> int:
-    return int(len(text.split()) * 1.3)
+    chunk_index_in_parent: int | None = None
 
 
 def _make_id() -> str:
@@ -46,6 +42,7 @@ def build_chunks(
     current_section_path: list[str] = []
     current_section_title: str = ""
     current_parent_id: str | None = None
+    current_root_id: str | None = None
     prose_buffer: list[str] = []
 
     def flush_prose():
@@ -56,6 +53,7 @@ def build_chunks(
         # Split into leaf chunks if too long
         words = full_text.split()
         start = 0
+        chunk_index = 0
         while start < len(words):
             end = start
             token_count = 0
@@ -68,17 +66,19 @@ def build_chunks(
                 guideline_id=guideline_id,
                 guideline_version=guideline_version,
                 text=chunk_text,
-                chunk_type="prose",
+                chunk_type="section",
                 is_leaf=True,
                 parent_chunk_id=current_parent_id,
-                root_chunk_id=current_parent_id,
+                root_chunk_id=current_root_id,
                 section_path=list(current_section_path),
                 section_title=current_section_title,
                 page_start=page_start,
                 page_end=page_end,
+                chunk_index_in_parent=chunk_index,
             )
             chunks.append(leaf)
-            start = max(end - int(OVERLAP_TOKENS / 1.3), end - 50) if end < len(words) else end
+            chunk_index += 1
+            start = end - int(OVERLAP_TOKENS / 1.3) if end < len(words) else end
         prose_buffer = []
 
     for unit in units:
@@ -93,15 +93,18 @@ def build_chunks(
                 guideline_id=guideline_id,
                 guideline_version=guideline_version,
                 text=unit.text,
-                chunk_type="heading",
+                chunk_type="section",
                 is_leaf=False,
                 section_path=list(current_section_path),
                 section_title=current_section_title,
+                root_chunk_id=current_root_id,
                 page_start=page_start,
                 page_end=page_end,
             )
             chunks.append(parent)
             current_parent_id = parent.chunk_id
+            if depth == 1:
+                current_root_id = parent.chunk_id
 
         elif unit.kind == "empfehlung":
             flush_prose()
@@ -110,10 +113,10 @@ def build_chunks(
                 guideline_id=guideline_id,
                 guideline_version=guideline_version,
                 text=unit.text,
-                chunk_type="empfehlung",
+                chunk_type="recommendation",
                 is_leaf=True,
                 parent_chunk_id=current_parent_id,
-                root_chunk_id=current_parent_id,
+                root_chunk_id=current_root_id,
                 section_path=list(current_section_path),
                 section_title=current_section_title,
                 recommendation_id=unit.recommendation_id,
@@ -121,6 +124,7 @@ def build_chunks(
                 evidence_level=unit.evidence_level,
                 page_start=page_start,
                 page_end=page_end,
+                chunk_index_in_parent=None,
             )
             chunks.append(leaf)
 
