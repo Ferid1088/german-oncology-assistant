@@ -1,8 +1,8 @@
 import re
 from dataclasses import dataclass
 
-INLINE_REF_RE = re.compile(r"\[(\d+(?:,\s*\d+)*)\]")
-BIB_ENTRY_RE = re.compile(r"^\[?(\d+)\]?\s+(.+)$")
+INLINE_REF_RE = re.compile(r"(?<!\w)\[(\d+(?:,\s*\d+)*)\]")
+BIB_ENTRY_RE = re.compile(r"^\[(\d+)\]\s+(.+)$")
 PUBMED_URL_RE = re.compile(r"https?://pubmed\.ncbi\.nlm\.nih\.gov/(\d+)")
 
 
@@ -16,7 +16,7 @@ class ReferenceEntry:
 
 
 def extract_inline_refs(text: str) -> list[str]:
-    """Return list of all cited reference IDs found in text."""
+    """Return list of all cited reference IDs found in text. Duplicates are preserved."""
     ids: list[str] = []
     for match in INLINE_REF_RE.finditer(text):
         for ref_id in match.group(1).split(","):
@@ -30,7 +30,7 @@ def parse_bibliography(text: str) -> list[ReferenceEntry]:
     for line in text.splitlines():
         line = line.strip()
         m = BIB_ENTRY_RE.match(line)
-        if m and len(line) > 10:  # avoid false positives on short lines
+        if m:
             ref_id = m.group(1)
             raw = m.group(2)
             pubmed_url = ""
@@ -46,3 +46,25 @@ def parse_bibliography(text: str) -> list[ReferenceEntry]:
                 pubmed_id=pubmed_id,
             ))
     return entries
+
+
+def resolve_refs(
+    inline_ids: list[str], entries: list[ReferenceEntry]
+) -> list[ReferenceEntry]:
+    """Cross-link inline citation IDs against bibliography entries.
+
+    Returns a list of ReferenceEntry objects for each inline_id.
+    IDs with no matching entry get a stub ReferenceEntry with unresolved=True.
+    """
+    index = {e.reference_id: e for e in entries}
+    result: list[ReferenceEntry] = []
+    for ref_id in inline_ids:
+        if ref_id in index:
+            result.append(index[ref_id])
+        else:
+            result.append(ReferenceEntry(
+                reference_id=ref_id,
+                raw_text="",
+                unresolved=True,
+            ))
+    return result
