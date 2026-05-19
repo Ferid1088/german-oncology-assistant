@@ -121,6 +121,7 @@ def hybrid_search(
             collection_name=COLLECTION,
             data=[query],
             anns_field="sparse_vector",
+            search_params={"metric_type": "BM25"},
             limit=top_k,
             filter=expr,
             output_fields=output_fields,

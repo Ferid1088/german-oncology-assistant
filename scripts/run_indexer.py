@@ -1,8 +1,11 @@
 # scripts/run_indexer.py
 """CLI: python scripts/run_indexer.py [--pdf mammakarzinom_v4.4.pdf] [--dry-run]"""
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 import argparse
 import logging
-from pathlib import Path
 from src.indexer.pipeline import index_pdf, GUIDELINE_MAP
 from src.indexer.store import MilvusStore
 
