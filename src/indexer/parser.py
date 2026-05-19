@@ -19,6 +19,17 @@ _HEADER_PAGE_RE = re.compile(
     re.MULTILINE | re.IGNORECASE,
 )
 
+# Strip the full two-line copyright block from each page before cleaning.
+# clean_text() would otherwise merge the number into the copyright line,
+# producing "... | Juni 2021 70" in every chunk that crosses a page boundary.
+_HEADER_STRIP_RE = re.compile(
+    r"©[^\n]*Leitlinienprogramm\s+Onkologie[^\n]*\n[ \t]*\d{1,4}[ \t]*\n?",
+    re.IGNORECASE,
+)
+
+# TOC pages are identified by dot-leader lines: "4.3.3.7 Papillom ........... 94"
+_TOC_LEADER_RE = re.compile(r"\.{5,}\s*\d+\s*$")
+
 
 def _extract_doc_page_number(text: str) -> int | None:
     """Return the printed page number from the S3-Leitlinie header, or None."""
@@ -26,15 +37,25 @@ def _extract_doc_page_number(text: str) -> int | None:
     return int(m.group(1)) if m else None
 
 
+def _is_toc_page(text: str) -> bool:
+    """Return True if the page is a table-of-contents page (dot-leader entries)."""
+    toc_lines = sum(1 for l in text.splitlines() if _TOC_LEADER_RE.search(l.strip()))
+    return toc_lines >= 5
+
+
 def extract_pages(pdf_path: Path) -> list[PageDict]:
     """Extract text page by page from a PDF. Returns list of {page_number, doc_page_number, text}."""
     pages = []
     with fitz.open(str(pdf_path)) as doc:
         for i, page in enumerate(doc):
-            text = page.get_text("text")
+            raw = page.get_text("text")
+            doc_page = _extract_doc_page_number(raw)
+            text = _HEADER_STRIP_RE.sub("", raw)
+            if _is_toc_page(text):
+                text = ""
             pages.append({
                 "page_number": i + 1,
-                "doc_page_number": _extract_doc_page_number(text),
+                "doc_page_number": doc_page,
                 "text": text,
             })
     return pages
