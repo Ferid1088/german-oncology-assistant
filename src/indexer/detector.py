@@ -55,8 +55,17 @@ def detect_structure(text: str) -> list[StructuralUnit]:
             grade = ""
             evidence = ""
             j = i + 1
-            while j < len(lines) and lines[j].strip():
+            while j < len(lines):
                 bl = lines[j].strip()
+                if not bl:
+                    # EK blocks have one blank line between header and body text;
+                    # skip it only when we haven't collected any body lines yet.
+                    if len(block_lines) == 1:
+                        j += 1
+                        continue
+                    break
+                if HEADING_RE.match(bl) or EMPFEHLUNG_RE.match(bl) or BIB_RE.match(bl):
+                    break
                 gm = GRADE_RE.search(bl)
                 em = EVIDENCE_RE.search(bl)
                 if gm:

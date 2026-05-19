@@ -64,6 +64,8 @@ def build_chunks(
     def _page(line: int) -> int | None:
         return _page_at_line(page_boundaries, line) if page_boundaries else None
 
+    MIN_PROSE_WORDS = 25  # drop author-list lines and other one-liner fragments
+
     def flush_prose():
         nonlocal prose_buffer, current_parent_id, prose_line_start
         if not prose_buffer:
@@ -71,6 +73,9 @@ def build_chunks(
         pg = _page(prose_line_start)
         full_text = " ".join(prose_buffer)
         words = full_text.split()
+        if len(words) < MIN_PROSE_WORDS:
+            prose_buffer = []
+            return
         start = 0
         chunk_index = 0
         while start < len(words):
