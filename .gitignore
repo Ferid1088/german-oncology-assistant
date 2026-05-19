@@ -22,5 +22,10 @@ venv/
 data/chunks/
 docs/knowledge_base/
 
+# Milvus local database
+milvus.db/
+
 # IDE / local tool settings
 .claude/
+
+experiments/

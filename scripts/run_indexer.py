@@ -16,10 +16,16 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--pdf", help="Single PDF filename to index (from GUIDELINE_MAP)")
     parser.add_argument("--dry-run", action="store_true", help="Parse and chunk but do not write to Milvus")
+    parser.add_argument("--reset", action="store_true", help="Drop and recreate the collection before indexing")
     args = parser.parse_args()
 
     kb_dir = Path("docs/knowledge_base")
     store = MilvusStore()
+
+    if args.reset:
+        print("Dropping existing collection...")
+        store.drop()
+        print("Collection dropped.")
 
     pdfs = [args.pdf] if args.pdf else list(GUIDELINE_MAP.keys())
     for pdf_name in pdfs:

@@ -21,6 +21,7 @@ GUIDELINE_MAP = {
     "kolorektales_v3.0.pdf":     ("krk",    "3.0", "S3-Leitlinie Kolorektales Karzinom"),
     "lungenkarzinom_v4.0.pdf":   ("lunge",  "4.0", "S3-Leitlinie Lungenkarzinom"),
     "prostatakarzinom_v8.0.pdf": ("prosta", "8.0", "S3-Leitlinie Prostatakarzinom"),
+    "what-is-cancer.pdf":        ("cancer_basics", "1.0", "What Is Cancer"),
 }
 
 

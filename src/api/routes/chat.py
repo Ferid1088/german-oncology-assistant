@@ -25,39 +25,49 @@ class ChatRequest(BaseModel):
 
 
 async def _stream_response(request: ChatRequest):
-    graph = get_graph()
-    initial_state = RAGState(
-        user_query=request.query,
-        session_id=request.session_id,
-        rewritten_query="",
-        metadata_filters={k: v for k, v in {
-            "guideline_id": request.guideline_id,
-            "grade": request.grade,
-        }.items() if v},
-        intent="",
-        retrieved_chunks=[],
-        confidence=0.0,
-        answer_professional="",
-        answer_plain="",
-        citations=[],
-        disclaimer="",
-        input_blocked=False,
-        input_block_reason="",
-        output_blocked=False,
-        tool_calls_log=[],
-        messages=[],
-    )
+    try:
+        graph = get_graph()
+        initial_state = RAGState(
+            user_query=request.query,
+            session_id=request.session_id,
+            rewritten_query="",
+            metadata_filters={k: v for k, v in {
+                "guideline_id": request.guideline_id,
+                "grade": request.grade,
+            }.items() if v},
+            intent="",
+            retrieved_chunks=[],
+            confidence=0.0,
+            answer_professional="",
+            answer_plain="",
+            citations=[],
+            disclaimer="",
+            input_blocked=False,
+            input_block_reason="",
+            output_blocked=False,
+            tool_calls_log=[],
+            messages=[],
+        )
 
-    final_state = graph.invoke(initial_state)
+        final_state = graph.invoke(initial_state)
 
-    payload = {
-        "answer_professional": final_state["answer_professional"],
-        "answer_plain": final_state["answer_plain"],
-        "citations": final_state["citations"],
-        "disclaimer": final_state["disclaimer"],
-        "tool_calls": final_state["tool_calls_log"],
-        "blocked": final_state["input_blocked"] or final_state["output_blocked"],
-    }
+        payload = {
+            "answer_professional": final_state["answer_professional"],
+            "answer_plain": final_state["answer_plain"],
+            "citations": final_state["citations"],
+            "disclaimer": final_state["disclaimer"],
+            "tool_calls": final_state["tool_calls_log"],
+            "blocked": final_state["input_blocked"] or final_state["output_blocked"],
+        }
+    except Exception as exc:
+        payload = {
+            "answer_professional": f"Interner Fehler: {exc}",
+            "answer_plain": "Es ist ein Fehler aufgetreten. Bitte prüfen Sie die Serverkonfiguration.",
+            "citations": [],
+            "disclaimer": "",
+            "tool_calls": [],
+            "blocked": False,
+        }
 
     yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
     yield "data: [DONE]\n\n"

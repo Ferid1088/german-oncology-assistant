@@ -1,13 +1,16 @@
 import os
 import json
+import logging
+import time
 from dataclasses import dataclass
 from pymilvus import MilvusClient
 from src.indexer.embedder import embed_texts
 
-MILVUS_URI = os.getenv("MILVUS_URI", "http://localhost:19530")
+log = logging.getLogger(__name__)
+
+MILVUS_URI = os.getenv("MILVUS_URI") or "./milvus.db"
 COLLECTION = os.getenv("MILVUS_COLLECTION", "oncology_guidelines")
 TOP_K_DENSE = 20
-TOP_K_SPARSE = 20
 
 
 @dataclass
@@ -83,7 +86,7 @@ def hybrid_search(
     top_k: int = 20,
     client: MilvusClient | None = None,
 ) -> list[RetrievedChunk]:
-    """Dense + BM25 search with RRF fusion and optional metadata filter."""
+    """Dense vector search with optional metadata filter."""
     c = client or MilvusClient(uri=MILVUS_URI)
     vector = embed_texts([query])[0]
 
@@ -93,7 +96,6 @@ def hybrid_search(
         "recommendation_id", "parent_chunk_id", "source_filename", "contextual_header",
     ]
 
-    # Build metadata filter expression
     filters = ["is_leaf == true"]
     if guideline_id:
         filters.append(f'guideline_id == "{guideline_id}"')
@@ -103,7 +105,20 @@ def hybrid_search(
         filters.append(f'chunk_type == "{chunk_type_filter}"')
     expr = " and ".join(filters) if filters else ""
 
-    # Dense search
+    if not c.has_collection(COLLECTION):
+        log.warning("Collection '%s' not found — run the indexer first.", COLLECTION)
+        return []
+
+    for attempt in range(5):
+        try:
+            c.load_collection(COLLECTION)
+            break
+        except Exception as e:
+            if attempt == 4:
+                raise
+            log.warning("load_collection attempt %d failed (%s), retrying...", attempt + 1, e)
+            time.sleep(3)
+
     dense_raw = c.search(
         collection_name=COLLECTION,
         data=[vector],
@@ -112,22 +127,4 @@ def hybrid_search(
         filter=expr,
         output_fields=output_fields,
     )
-    dense_chunks = _milvus_results_to_chunks(dense_raw[0] if dense_raw else [])
-
-    # BM25 sparse search — Milvus 2.4+ supports full-text search
-    # Fallback: use dense only if BM25 not configured
-    try:
-        sparse_raw = c.search(
-            collection_name=COLLECTION,
-            data=[query],
-            anns_field="sparse_vector",
-            search_params={"metric_type": "BM25"},
-            limit=top_k,
-            filter=expr,
-            output_fields=output_fields,
-        )
-        sparse_chunks = _milvus_results_to_chunks(sparse_raw[0] if sparse_raw else [])
-    except Exception:
-        sparse_chunks = []  # BM25 not configured — use dense only
-
-    return rrf_fuse(dense_chunks, sparse_chunks)[:top_k]
+    return _milvus_results_to_chunks(dense_raw[0] if dense_raw else [])[:top_k]

@@ -1,7 +1,7 @@
 import os
 from pymilvus import MilvusClient
 
-MILVUS_URI = os.getenv("MILVUS_URI", "http://localhost:19530")
+MILVUS_URI = os.getenv("MILVUS_URI") or "./milvus.db"
 COLLECTION = os.getenv("MILVUS_COLLECTION", "oncology_guidelines")
 
 
