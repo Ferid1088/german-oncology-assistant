@@ -29,6 +29,13 @@ def shutdown(signum, frame):
 signal.signal(signal.SIGINT, shutdown)
 signal.signal(signal.SIGTERM, shutdown)
 
+# Free ports if held by stale processes
+for _port in (8000, 8501):
+    subprocess.run(f"lsof -ti :{_port} | xargs kill -9", shell=True,
+                   capture_output=True)
+
+import time; time.sleep(1)
+
 # 1 — FastAPI (milvus-lite starts in-process on first MilvusClient call)
 print("Starting API ...")
 api = subprocess.Popen(

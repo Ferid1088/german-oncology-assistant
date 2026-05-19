@@ -1,6 +1,6 @@
 import json
 from fastapi import APIRouter, Depends
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response
 from pydantic import BaseModel
 from src.api.auth import verify_api_key
 from src.graph.graph import build_graph
@@ -24,7 +24,9 @@ class ChatRequest(BaseModel):
     grade: str = ""
 
 
-async def _stream_response(request: ChatRequest):
+@router.post("/chat", dependencies=[Depends(verify_api_key)])
+def chat(request: ChatRequest):
+    # Sync endpoint — FastAPI runs this in a thread pool, so blocking LLM calls are safe.
     try:
         graph = get_graph()
         initial_state = RAGState(
@@ -69,14 +71,6 @@ async def _stream_response(request: ChatRequest):
             "blocked": False,
         }
 
-    yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
-    yield "data: [DONE]\n\n"
-
-
-@router.post("/chat", dependencies=[Depends(verify_api_key)])
-async def chat(request: ChatRequest):
-    return StreamingResponse(
-        _stream_response(request),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
+    body = f"data: {json.dumps(payload, ensure_ascii=False)}\n\ndata: [DONE]\n\n"
+    return Response(content=body, media_type="text/event-stream",
+                    headers={"Cache-Control": "no-cache"})

@@ -2,8 +2,6 @@ from langgraph.graph import StateGraph, END
 from src.graph.state import RAGState
 from src.graph.nodes.guardrail_input import apply_input_guardrail
 from src.graph.nodes.rewriter import rewrite_query
-from src.graph.nodes.self_query import extract_metadata_filters
-from src.graph.nodes.router import route_intent
 from src.graph.nodes.agent import run_agent
 from src.graph.nodes.confidence import check_confidence, needs_escalation
 from src.graph.nodes.answer import generate_answer
@@ -38,8 +36,6 @@ def build_graph(checkpointer=None):
     builder.add_node("guardrail_input", apply_input_guardrail)
     builder.add_node("blocked", _blocked_response)
     builder.add_node("rewrite", rewrite_query)
-    builder.add_node("self_query", extract_metadata_filters)
-    builder.add_node("router", route_intent)
     builder.add_node("agent", run_agent)
     builder.add_node("confidence", check_confidence)
     builder.add_node("escalate", _multi_query_escalation)
@@ -52,9 +48,7 @@ def build_graph(checkpointer=None):
         "rewrite": "rewrite",
     })
     builder.add_edge("blocked", END)
-    builder.add_edge("rewrite", "self_query")
-    builder.add_edge("self_query", "router")
-    builder.add_edge("router", "agent")
+    builder.add_edge("rewrite", "agent")
     builder.add_edge("agent", "confidence")
     builder.add_conditional_edges("confidence", needs_escalation, {
         "escalate": "escalate",

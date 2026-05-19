@@ -18,6 +18,15 @@ def render_filters() -> dict:
     grade = st.sidebar.selectbox(
         "Empfehlungsgrad",
         options=["Alle", "A", "B", "0"],
+        help=(
+            "Filtert Ergebnisse nach dem Empfehlungsgrad der S3-Leitlinien (AWMF):\n\n"
+            "**A – Soll:** Starke Empfehlung. Hohe Evidenzqualität, klarer Nutzen. "
+            "Soll routinemäßig angewendet werden.\n\n"
+            "**B – Sollte:** Moderate Empfehlung. Mittlere Evidenz oder geringerer Konsens. "
+            "In den meisten Fällen empfohlen.\n\n"
+            "**0 – Kann:** Offene Empfehlung. Schwache Evidenz oder gleichwertige Alternativen. "
+            "Liegt im Ermessen des Arztes."
+        ),
     )
     return {
         "guideline_id": "" if guideline == "Alle" else guideline,

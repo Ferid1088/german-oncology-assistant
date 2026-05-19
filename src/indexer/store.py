@@ -18,7 +18,7 @@ class MilvusStore:
 
         schema = self.client.create_schema(auto_id=False, enable_dynamic_field=True)
         schema.add_field("chunk_id", DataType.VARCHAR, is_primary=True, max_length=64)
-        schema.add_field("text", DataType.VARCHAR, max_length=8192)
+        schema.add_field("text", DataType.VARCHAR, max_length=16384)
         schema.add_field("dense_vector", DataType.FLOAT_VECTOR, dim=DIM)
         schema.add_field("guideline_id", DataType.VARCHAR, max_length=64)
         schema.add_field("chunk_type", DataType.VARCHAR, max_length=32)

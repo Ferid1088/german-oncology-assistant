@@ -17,6 +17,7 @@ def main():
     parser.add_argument("--pdf", help="Single PDF filename to index (from GUIDELINE_MAP)")
     parser.add_argument("--dry-run", action="store_true", help="Parse and chunk but do not write to Milvus")
     parser.add_argument("--reset", action="store_true", help="Drop and recreate the collection before indexing")
+    parser.add_argument("--no-enrich", action="store_true", help="Skip LLM enrichment (faster, cheaper re-index)")
     args = parser.parse_args()
 
     kb_dir = Path("docs/knowledge_base")
@@ -33,7 +34,7 @@ def main():
         if not pdf_path.exists():
             print(f"WARNING: {pdf_path} not found, skipping")
             continue
-        count = index_pdf(pdf_path, store, dry_run=args.dry_run)
+        count = index_pdf(pdf_path, store, dry_run=args.dry_run, enrich=not args.no_enrich)
         print(f"Indexed {count} chunks from {pdf_name}")
 
 

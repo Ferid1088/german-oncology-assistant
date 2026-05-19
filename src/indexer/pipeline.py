@@ -4,11 +4,10 @@ import logging
 from pathlib import Path
 from dotenv import load_dotenv
 
-from src.indexer.parser import extract_pages, clean_text
-from src.indexer.chunker import build_chunks
+from src.indexer.parser import extract_pages, clean_text, normalize_recommendations
+from src.indexer.chunker import build_chunks, PageBoundary
 from src.indexer.metadata import attach_metadata
 from src.indexer.reference import extract_inline_refs, parse_bibliography
-from src.indexer.enricher import generate_contextual_header, generate_hypothetical_questions, extract_semantic_metadata
 from src.indexer.embedder import embed_texts
 from src.indexer.store import MilvusStore
 
@@ -25,17 +24,36 @@ GUIDELINE_MAP = {
 }
 
 
-def index_pdf(pdf_path: Path, store: MilvusStore, dry_run: bool = False) -> int:
+def _build_page_boundaries(pages: list[dict]) -> tuple[str, list[PageBoundary]]:
+    """
+    Join per-page cleaned texts and build a list of (line_start, doc_page_number)
+    boundaries so the chunker can assign the correct printed page to each chunk.
+    Falls back to physical PDF page number when the header number isn't found.
+    """
+    page_texts: list[str] = []
+    boundaries: list[PageBoundary] = []
+    current_line = 0
+    for p in pages:
+        cleaned = normalize_recommendations(clean_text(p["text"]))
+        page_num = p.get("doc_page_number") or p["page_number"]
+        boundaries.append((current_line, page_num))
+        line_count = cleaned.count("\n") + 1
+        page_texts.append(cleaned)
+        current_line += line_count + 1  # +1 for the joining "\n"
+    return "\n".join(page_texts), boundaries
+
+
+def index_pdf(pdf_path: Path, store: MilvusStore, dry_run: bool = False, enrich: bool = True) -> int:
     """Index a single PDF. Returns number of leaf chunks indexed."""
     filename = pdf_path.name
     guideline_id, version, title = GUIDELINE_MAP[filename]
-    log.info("Indexing %s", filename)
+    log.info("Indexing %s (enrich=%s)", filename, enrich)
 
     pages = extract_pages(pdf_path)
-    full_text = "\n".join(clean_text(p["text"]) for p in pages)
+    full_text, page_boundaries = _build_page_boundaries(pages)
 
-    # Build chunks from full text
-    chunks = build_chunks(guideline_id, version, full_text)
+    # Build chunks from full text with per-chunk page assignment
+    chunks = build_chunks(guideline_id, version, full_text, page_boundaries=page_boundaries)
     chunks = attach_metadata(chunks, source_filename=filename)
 
     # Parse bibliography from full text for reference linking
@@ -45,6 +63,13 @@ def index_pdf(pdf_path: Path, store: MilvusStore, dry_run: bool = False) -> int:
     records = []
     leaf_chunks = [c for c in chunks if c.is_leaf]
 
+    if enrich:
+        from src.indexer.enricher import (
+            generate_contextual_header,
+            generate_hypothetical_questions,
+            extract_semantic_metadata,
+        )
+
     for chunk in leaf_chunks:
         # Reference linking
         inline_refs = extract_inline_refs(chunk.text)
@@ -53,22 +78,26 @@ def index_pdf(pdf_path: Path, store: MilvusStore, dry_run: bool = False) -> int:
         if unresolved:
             log.warning("Unresolved refs in chunk %s: %s", chunk.chunk_id, unresolved)
 
-        # LLM enrichment
-        header = generate_contextual_header(
-            chunk_text=chunk.text,
-            section_path=chunk.section_path,
-            guideline_title=title,
-        )
-        hypo_qs = generate_hypothetical_questions(chunk_text=chunk.text)
-        semantic = extract_semantic_metadata(chunk_text=chunk.text)
+        if enrich:
+            header = generate_contextual_header(
+                chunk_text=chunk.text,
+                section_path=chunk.section_path,
+                guideline_title=title,
+            )
+            hypo_qs = generate_hypothetical_questions(chunk_text=chunk.text)
+            semantic = extract_semantic_metadata(chunk_text=chunk.text)
+            embed_input = f"{header}\n" + "\n".join(hypo_qs) + f"\n\n{chunk.text}"
+        else:
+            header = ""
+            hypo_qs = []
+            semantic = {}
+            embed_input = chunk.text
 
-        # Text to embed: header + hypothetical questions + chunk text
-        embed_input = f"{header}\n" + "\n".join(hypo_qs) + f"\n\n{chunk.text}"
         vector = embed_texts([embed_input])[0]
 
         record = {
             "chunk_id": chunk.chunk_id,
-            "text": chunk.text,
+            "text": chunk.text[:16000],
             "dense_vector": vector,
             "guideline_id": chunk.guideline_id,
             "guideline_version": chunk.guideline_version,
@@ -78,6 +107,8 @@ def index_pdf(pdf_path: Path, store: MilvusStore, dry_run: bool = False) -> int:
             "recommendation_id": chunk.recommendation_id,
             "recommendation_grade": chunk.recommendation_grade,
             "evidence_level": chunk.evidence_level,
+            "page_start": chunk.page_start,
+            "page_end": chunk.page_end,
             "parent_chunk_id": chunk.parent_chunk_id or "",
             "source_filename": chunk.source_filename,
             "is_leaf": chunk.is_leaf,

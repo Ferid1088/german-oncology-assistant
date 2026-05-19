@@ -4,6 +4,7 @@ from openai import OpenAI
 from src.graph.state import RAGState
 from src.tools.search_guidelines import search_guidelines_tool
 from src.tools.lookup_empfehlung import lookup_empfehlung_tool
+from src.prompts.agent import AGENT_SYSTEM
 
 GEN_MODEL = os.getenv("GENERATION_MODEL", "openai/gpt-4o")
 
@@ -56,26 +57,30 @@ def _dispatch_tool(name: str, args: dict) -> str:
     return json.dumps({"error": f"Unknown tool: {name}"})
 
 
+_FORCE_SEARCH = {"type": "function", "function": {"name": "search_guidelines"}}
+
+
 def run_agent(state: RAGState, client: OpenAI | None = None) -> dict:
-    """Tool-calling agent loop. Runs until the model stops calling tools."""
+    """Tool-calling agent loop. First iteration always searches; second is optional."""
     c = client or _client()
     messages = [
-        {"role": "system", "content": (
-            "Du bist ein medizinischer Leitlinien-Assistent für deutsche S3-Onkologie-Leitlinien. "
-            "Nutze die verfügbaren Tools um relevante Leitlinienabschnitte zu finden, bevor du antwortest."
-        )},
+        {"role": "system", "content": AGENT_SYSTEM},
         {"role": "user", "content": state["rewritten_query"] or state["user_query"]},
     ]
 
     all_chunks: list[dict] = []
     tool_calls_log: list[dict] = []
 
-    for _ in range(5):  # max iterations
+    searched_queries: set[str] = set()
+
+    for i in range(2):  # max iterations
+        # Force a DB search on the first call; let the model decide on the second
+        tool_choice = _FORCE_SEARCH if i == 0 else "auto"
         resp = c.chat.completions.create(
             model=GEN_MODEL,
             messages=messages,
             tools=TOOLS_SPEC,
-            tool_choice="auto",
+            tool_choice=tool_choice,
         )
         msg = resp.choices[0].message
 
@@ -87,14 +92,28 @@ def run_agent(state: RAGState, client: OpenAI | None = None) -> dict:
             for tc in msg.tool_calls
         ]})
 
+        made_new_search = False
         for tc in msg.tool_calls:
             args = json.loads(tc.function.arguments)
+
+            # Skip duplicate search_guidelines calls with the same query
+            if tc.function.name == "search_guidelines":
+                q_key = args.get("query", "").strip().lower()
+                if q_key in searched_queries:
+                    continue
+                searched_queries.add(q_key)
+                made_new_search = True
+
             result_str = _dispatch_tool(tc.function.name, args)
             tool_calls_log.append({"tool": tc.function.name, "args": args})
             messages.append({"role": "tool", "tool_call_id": tc.id, "content": result_str})
 
             if tc.function.name == "search_guidelines":
                 all_chunks.extend(json.loads(result_str))
+
+        # No new searches were needed on this iteration — we're done
+        if not made_new_search and i > 0:
+            break
 
     return {
         "retrieved_chunks": all_chunks[:10],

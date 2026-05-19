@@ -26,6 +26,7 @@ class RetrievedChunk:
     chunk_type: str
     recommendation_grade: str
     recommendation_id: str = ""
+    evidence_level: str = ""
     parent_chunk_id: str = ""
     source_filename: str = ""
     contextual_header: str = ""
@@ -71,6 +72,7 @@ def _milvus_results_to_chunks(results: list[dict]) -> list[RetrievedChunk]:
             chunk_type=e.get("chunk_type", ""),
             recommendation_grade=e.get("recommendation_grade", ""),
             recommendation_id=e.get("recommendation_id", ""),
+            evidence_level=e.get("evidence_level", ""),
             parent_chunk_id=e.get("parent_chunk_id", ""),
             source_filename=e.get("source_filename", ""),
             contextual_header=e.get("contextual_header", ""),
@@ -93,7 +95,7 @@ def hybrid_search(
     output_fields = [
         "chunk_id", "text", "guideline_id", "section_title", "section_path",
         "page_start", "page_end", "chunk_type", "recommendation_grade",
-        "recommendation_id", "parent_chunk_id", "source_filename", "contextual_header",
+        "recommendation_id", "evidence_level", "parent_chunk_id", "source_filename", "contextual_header",
     ]
 
     filters = ["is_leaf == true"]
@@ -127,4 +129,24 @@ def hybrid_search(
         filter=expr,
         output_fields=output_fields,
     )
-    return _milvus_results_to_chunks(dense_raw[0] if dense_raw else [])[:top_k]
+    general_chunks = _milvus_results_to_chunks(dense_raw[0] if dense_raw else [])
+
+    # Always run a second search restricted to recommendation chunks so that
+    # empfehlung blocks (which have dense but terse text) aren't buried by
+    # longer prose that scores higher on pure cosine similarity.
+    if not chunk_type_filter:
+        rec_filters = [f for f in filters if 'chunk_type' not in f]
+        rec_filters.append('chunk_type == "recommendation"')
+        rec_expr = " and ".join(rec_filters)
+        rec_raw = c.search(
+            collection_name=COLLECTION,
+            data=[vector],
+            anns_field="dense_vector",
+            limit=top_k,
+            filter=rec_expr,
+            output_fields=output_fields,
+        )
+        rec_chunks = _milvus_results_to_chunks(rec_raw[0] if rec_raw else [])
+        return rrf_fuse(general_chunks, rec_chunks)[:top_k]
+
+    return general_chunks[:top_k]

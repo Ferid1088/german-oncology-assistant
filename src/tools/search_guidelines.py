@@ -32,8 +32,10 @@ def search_guidelines_tool(
             "section_path": c.section_path,
             "page_start": c.page_start,
             "page_end": c.page_end,
+            "chunk_type": c.chunk_type,
             "recommendation_grade": c.recommendation_grade,
             "recommendation_id": c.recommendation_id,
+            "evidence_level": c.evidence_level,
             "source_filename": c.source_filename,
             "citation": f"{c.guideline_id.upper()} § {'.'.join(c.section_path)} (S. {c.page_start}–{c.page_end})"
             if c.page_start

@@ -1,10 +1,13 @@
 import re
 from dataclasses import dataclass
 
-HEADING_RE = re.compile(r"^(\d(?:\.\d{1,2})*)\s+[A-ZÄÖÜ]")
-EMPFEHLUNG_RE = re.compile(r"^Empfehlung\s+(\d+(?:\.\d+)+)", re.IGNORECASE)
-GRADE_RE = re.compile(r"Empfehlungsgrad\s*:\s*([A-Z0])", re.IGNORECASE)
-EVIDENCE_RE = re.compile(r"Evidenzlevel\s*:\s*(\S+)", re.IGNORECASE)
+HEADING_RE = re.compile(r"^(\d{1,3}(?:\.\d{1,3})+)\.?\s+[A-ZÄÖÜ]")
+EMPFEHLUNG_RE = re.compile(
+    r"^(\d+\.\d+(?:\.\d+)?)\.?\s+(Evidenzbasierte|Konsensbasierte)\s+(Empfehlung|Statement)",
+    re.IGNORECASE,
+)
+GRADE_RE = re.compile(r"Empfehlungsgrad\s*:?\s*([A-Z0])\b", re.IGNORECASE)
+EVIDENCE_RE = re.compile(r"(?:Evidenzlevel|Level of Evidence)\s*:?\s*(\S+)", re.IGNORECASE)
 BIB_RE = re.compile(r"^\[(\d+)\]\s*\S")
 
 
@@ -62,7 +65,7 @@ def detect_structure(text: str) -> list[StructuralUnit]:
                     evidence = em.group(1)
                 block_lines.append(bl)
                 j += 1
-            rec_id = EMPFEHLUNG_RE.match(stripped).group(1)
+            rec_id = EMPFEHLUNG_RE.match(stripped).group(1)  # group 1 = numeric id
             units.append(StructuralUnit(
                 kind="empfehlung",
                 text="\n".join(block_lines),
