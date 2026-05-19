@@ -8,8 +8,43 @@ import argparse
 import logging
 from src.indexer.pipeline import index_pdf, GUIDELINE_MAP
 from src.indexer.store import MilvusStore
+from src.retrieval.bm25 import build_bm25_index, reload_bm25_index
+from pymilvus import MilvusClient
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
+log = logging.getLogger(__name__)
+
+MILVUS_URI = "./milvus.db"
+COLLECTION = "oncology_guidelines"
+
+
+def _rebuild_bm25(dry_run: bool) -> None:
+    """Query all leaf chunks from Milvus and rebuild the BM25 pickle index."""
+    if dry_run:
+        return
+    print("Building BM25 index from Milvus corpus...")
+    c = MilvusClient(uri=MILVUS_URI)
+    c.load_collection(COLLECTION)
+    # Fetch all leaf chunks in pages of 1000
+    all_chunks: list[dict] = []
+    offset = 0
+    while True:
+        batch = c.query(
+            collection_name=COLLECTION,
+            filter="is_leaf == true",
+            output_fields=["chunk_id", "text"],
+            limit=1000,
+            offset=offset,
+        )
+        if not batch:
+            break
+        all_chunks.extend(batch)
+        offset += len(batch)
+        if len(batch) < 1000:
+            break
+    build_bm25_index(all_chunks)
+    reload_bm25_index()
+    print(f"BM25 index built from {len(all_chunks)} chunks.")
 
 
 def main():
@@ -36,6 +71,8 @@ def main():
             continue
         count = index_pdf(pdf_path, store, dry_run=args.dry_run, enrich=not args.no_enrich)
         print(f"Indexed {count} chunks from {pdf_name}")
+
+    _rebuild_bm25(args.dry_run)
 
 
 if __name__ == "__main__":

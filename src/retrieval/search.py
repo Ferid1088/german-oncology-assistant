@@ -5,6 +5,7 @@ import time
 from dataclasses import dataclass
 from pymilvus import MilvusClient
 from src.indexer.embedder import embed_texts
+from src.retrieval import bm25 as _bm25_mod
 
 log = logging.getLogger(__name__)
 
@@ -131,9 +132,9 @@ def hybrid_search(
     )
     general_chunks = _milvus_results_to_chunks(dense_raw[0] if dense_raw else [])
 
-    # Always run a second search restricted to recommendation chunks so that
-    # empfehlung blocks (which have dense but terse text) aren't buried by
-    # longer prose that scores higher on pure cosine similarity.
+    # Second dense search restricted to recommendation chunks so that terse
+    # empfehlung blocks aren't buried by longer prose on pure cosine similarity.
+    rec_chunks: list[RetrievedChunk] = []
     if not chunk_type_filter:
         rec_filters = [f for f in filters if 'chunk_type' not in f]
         rec_filters.append('chunk_type == "recommendation"')
@@ -147,6 +148,28 @@ def hybrid_search(
             output_fields=output_fields,
         )
         rec_chunks = _milvus_results_to_chunks(rec_raw[0] if rec_raw else [])
-        return rrf_fuse(general_chunks, rec_chunks)[:top_k]
 
-    return general_chunks[:top_k]
+    # BM25 sparse retrieval — scores exact keyword matches (drug names, rec IDs, etc.)
+    bm25_chunks = _bm25_mod.bm25_search(query, top_k=top_k, guideline_id=guideline_id)
+
+    # Three-way RRF: general dense + recommendation dense + BM25
+    fused = rrf_fuse(rrf_fuse(general_chunks, rec_chunks), bm25_chunks)[:top_k]
+
+    # BM25 stubs carry no metadata. Build a lookup from the dense results so we
+    # can transplant the full metadata onto any chunk that BM25 promoted in rank.
+    # Chunks that appeared only in BM25 (not in any dense result) are dropped —
+    # they have no metadata we can attach and would appear as empty citations.
+    dense_by_id: dict[str, RetrievedChunk] = {}
+    for ch in general_chunks:
+        dense_by_id[ch.chunk_id] = ch
+    for ch in rec_chunks:
+        dense_by_id.setdefault(ch.chunk_id, ch)
+
+    fused = [
+        RetrievedChunk(**{**vars(dense_by_id[ch.chunk_id]), "score": ch.score})
+        if ch.chunk_id in dense_by_id else ch
+        for ch in fused
+        if ch.chunk_id in dense_by_id or ch.text  # drop BM25-only stubs with no metadata
+    ]
+
+    return fused

@@ -47,9 +47,10 @@ def generate_hypothetical_questions(
 ) -> list[str]:
     c = client or _client()
     prompt = (
-        "Generiere 2-3 medizinische Fragen auf Deutsch, die ein Arzt stellen würde, "
-        "wenn er nach dem Inhalt dieses Leitlinien-Abschnitts sucht. "
-        "Eine Frage pro Zeile, kein JSON.\n\n"
+        "Generiere genau 2-3 medizinische Fragen auf Deutsch, die ein Arzt oder Kliniker "
+        "stellen würde, wenn er gezielt nach dem Inhalt dieses Leitlinien-Abschnitts sucht. "
+        "Regeln: Gib genau 2-3 Fragen aus. Eine Frage pro Zeile. "
+        "Keine Nummerierung, keine Aufzählungszeichen, kein JSON. Nur die Fragen.\n\n"
         f"Abschnitt:\n{chunk_text[:800]}"
     )
     resp = c.chat.completions.create(
