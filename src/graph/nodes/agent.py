@@ -2,6 +2,7 @@ import os
 import json
 from openai import OpenAI
 from src.graph.state import RAGState
+from src.retrieval.postprocess import top_unique_result_dicts
 from src.tools.search_guidelines import search_guidelines_tool
 from src.tools.lookup_empfehlung import lookup_empfehlung_tool
 from src.tools.compare_guidelines import compare_guidelines_tool
@@ -213,6 +214,6 @@ def run_agent(state: RAGState, client: OpenAI | None = None) -> dict:
             break
 
     return {
-        "retrieved_chunks": all_chunks[:10],
+        "retrieved_chunks": top_unique_result_dicts(all_chunks, top_k=10),
         "tool_calls_log": tool_calls_log,
     }

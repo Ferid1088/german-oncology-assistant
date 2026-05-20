@@ -188,6 +188,15 @@ _DATE_LABEL_STYLE = (
 )
 
 
+def _combine_answer_parts(answer_professional: str, answer_plain: str) -> str:
+    parts = []
+    if answer_professional:
+        parts.append(f"Fachliche Antwort\n\n{answer_professional}")
+    if answer_plain:
+        parts.append(f"In einfachen Worten\n\n{answer_plain}")
+    return "\n\n".join(parts).strip()
+
+
 def _date_group(dt: datetime.datetime) -> str:
     delta = (datetime.date.today() - dt.date()).days
     if delta == 0:
@@ -319,17 +328,22 @@ def render_chat_page(api_url: str, api_key: str) -> None:
 
                 if payload and not payload.get("blocked"):
                     citations = payload.get("citations", [])
-                    pro = annotate_citations(payload["answer_professional"], citations)
-                    plain = annotate_citations(payload["answer_plain"], citations)
-                    st.markdown("**Fachliche Antwort**")
-                    st.markdown(pro, unsafe_allow_html=True)
-                    st.markdown("---")
-                    st.markdown("**In einfachen Worten**")
-                    st.markdown(plain, unsafe_allow_html=True)
+                    pro_raw = payload.get("answer_professional", "")
+                    plain_raw = payload.get("answer_plain", "")
+                    pro = annotate_citations(pro_raw, citations) if pro_raw else ""
+                    plain = annotate_citations(plain_raw, citations) if plain_raw else ""
+                    if pro:
+                        st.markdown("**Fachliche Antwort**")
+                        st.markdown(pro, unsafe_allow_html=True)
+                    if plain:
+                        if pro:
+                            st.markdown("---")
+                        st.markdown("**In einfachen Worten**")
+                        st.markdown(plain, unsafe_allow_html=True)
                     st.markdown(payload.get("disclaimer", ""))
                     render_source_cards(citations)
                     render_feedback_buttons(conv["session_id"], query, api_url, api_key)
-                    answer_text = payload["answer_professional"]
+                    answer_text = _combine_answer_parts(pro_raw, plain_raw)
                 elif payload and payload.get("blocked"):
                     st.warning(payload.get("answer_professional", "Anfrage blockiert."))
                     answer_text = payload.get("answer_professional", "")

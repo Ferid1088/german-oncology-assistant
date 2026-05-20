@@ -7,6 +7,7 @@ from src.graph.nodes.agent import run_agent
 from src.graph.nodes.confidence import check_confidence, needs_escalation
 from src.graph.nodes.answer import generate_answer
 from src.graph.nodes.guardrail_output import apply_output_guardrail
+from src.retrieval.postprocess import top_unique_result_dicts
 
 
 def _multi_query_escalation(state: RAGState) -> dict:
@@ -35,12 +36,9 @@ def _multi_query_escalation(state: RAGState) -> dict:
             grade=state.get("metadata_filters", {}).get("grade"),
             top_k=5,
         )
-        for hit in hits:
-            key = hit.get("chunk_id")
-            if key and all(existing.get("chunk_id") != key for existing in merged):
-                merged.append(hit)
+        merged.extend(hits)
 
-    return {"retrieved_chunks": merged[:10]}
+    return {"retrieved_chunks": top_unique_result_dicts(merged, top_k=10)}
 
 
 def _blocked_response(state: RAGState) -> dict:

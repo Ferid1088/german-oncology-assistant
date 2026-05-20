@@ -12,19 +12,32 @@ def expand_to_parents(
 ) -> list[RetrievedChunk]:
     """For each leaf chunk that has a parent, fetch and attach parent context."""
     c = client or MilvusClient(uri=MILVUS_URI)
+    parent_ids = list({chunk.parent_chunk_id for chunk in chunks if chunk.parent_chunk_id})
+    parent_text_by_id: dict[str, str] = {}
+
+    if parent_ids:
+        try:
+            parent_rows = c.get(
+                collection_name=COLLECTION,
+                ids=parent_ids,
+                output_fields=["chunk_id", "text"],
+            )
+            parent_text_by_id = {
+                row.get("chunk_id", ""): row.get("text", "")
+                for row in parent_rows
+                if row.get("chunk_id")
+            }
+        except Exception:
+            parent_text_by_id = {}
+
     result = []
     for chunk in chunks:
         if not chunk.parent_chunk_id:
             result.append(chunk)
             continue
         try:
-            parent_rows = c.get(
-                collection_name=COLLECTION,
-                ids=[chunk.parent_chunk_id],
-                output_fields=["text"],
-            )
-            if parent_rows:
-                parent_text = parent_rows[0].get("text", "")
+            parent_text = parent_text_by_id.get(chunk.parent_chunk_id, "")
+            if parent_text:
                 expanded = RetrievedChunk(
                     **{**vars(chunk), "text": f"{parent_text}\n\n{chunk.text}"}
                 )

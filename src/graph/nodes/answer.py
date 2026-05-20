@@ -1,8 +1,9 @@
 import os
+import json
 import re
 from openai import OpenAI
 from src.graph.state import RAGState
-from src.prompts.answer import EXTRACT_PROMPT, SYNTHESIZE_PROMPT
+from src.prompts.answer import EXTRACT_PROMPT, SYNTHESIZE_PROMPT, MEMORY_REWRITE_PROMPT
 
 GEN_MODEL = os.getenv("GENERATION_MODEL", "openai/gpt-4o")
 CHEAP_MODEL = os.getenv("CHEAP_MODEL", "google/gemini-2.5-flash")
@@ -20,6 +21,56 @@ _NOT_FOUND = (
 
 def _client() -> OpenAI:
     return OpenAI(base_url="https://openrouter.ai/api/v1", api_key=os.environ["OPENROUTER_API_KEY"])
+
+
+def _strip_code_fence(raw: str) -> str:
+    text = (raw or "").strip()
+    if text.startswith("```"):
+        text = text.split("```", 1)[1].lstrip("json").strip()
+        if "```" in text:
+            text = text.split("```", 1)[0].strip()
+    return text
+
+
+def _split_sentences(text: str) -> list[str]:
+    text = (text or "").strip()
+    if not text:
+        return []
+    return [part.strip() for part in re.split(r"(?<=[.!?])\s+", text) if part.strip()]
+
+
+def _truncate_sentences(text: str, limit: int) -> str:
+    if limit <= 0:
+        return ""
+    sentences = _split_sentences(text)
+    if not sentences:
+        return text.strip()
+    return " ".join(sentences[:limit]).strip()
+
+
+def _basic_memory_rewrite(query: str, prior_answer: str, prior_plain: str) -> dict:
+    q = query.lower()
+    source = prior_plain if any(token in q for token in ["einfach", "einfacher", "einfachen worten"]) and prior_plain else (prior_answer or prior_plain)
+    if not source:
+        return {"answer_professional": "", "answer_plain": ""}
+
+    sentence_limit = None
+    sentence_match = re.search(r"\b(1|2|3|4|5)\s+s[äa]tze?n?\b", q)
+    if sentence_match:
+        sentence_limit = int(sentence_match.group(1))
+    elif re.search(r"\bein(?:em|e)?\s+satz\b", q):
+        sentence_limit = 1
+    elif "zwei sätze" in q:
+        sentence_limit = 2
+
+    if sentence_limit is not None:
+        source = _truncate_sentences(source, sentence_limit)
+    elif any(token in q for token in ["kürzer", "knapper", "zusammenfass"]):
+        source = _truncate_sentences(source, 2)
+
+    if any(token in q for token in ["einfach", "einfacher", "einfachen worten"]):
+        return {"answer_professional": "", "answer_plain": source}
+    return {"answer_professional": source, "answer_plain": ""}
 
 
 def _extract(llm: OpenAI, query: str, context: str) -> str:
@@ -46,11 +97,50 @@ def _synthesize(llm: OpenAI, query: str, extracted: str, valid_numbers: str) -> 
     return resp.choices[0].message.content.strip()
 
 
+def _rewrite_from_memory(
+    llm: OpenAI,
+    query: str,
+    prior_answer: str,
+    prior_plain: str,
+    turn_intents: list[str],
+    valid_numbers: str,
+) -> dict:
+    try:
+        resp = llm.chat.completions.create(
+            model=GEN_MODEL,
+            messages=[{"role": "user", "content": MEMORY_REWRITE_PROMPT.format(
+                query=query,
+                previous_answer=prior_answer,
+                previous_plain=prior_plain,
+                turn_intents=", ".join(turn_intents) or "keine",
+                valid_numbers=valid_numbers or "keine",
+            )}],
+            max_tokens=900,
+        )
+        raw = _strip_code_fence(resp.choices[0].message.content or "")
+        parsed = json.loads(raw)
+        answer_professional = str(parsed.get("answer_professional", "") or "").strip()
+        answer_plain = str(parsed.get("answer_plain", "") or "").strip()
+        if answer_professional or answer_plain:
+            return {
+                "answer_professional": answer_professional,
+                "answer_plain": answer_plain,
+            }
+    except Exception:
+        pass
+
+    return _basic_memory_rewrite(query, prior_answer, prior_plain)
+
+
 def generate_answer(state: RAGState, client: OpenAI | None = None) -> dict:
     llm = client or _client()
+    followup_memory = state.get("followup_routing") == "memory"
     chunks = state.get("retrieved_chunks", [])
-    if not chunks and state.get("followup_routing") == "memory":
+    if not chunks and followup_memory:
         chunks = state.get("prior_retrieved_chunks", [])
+
+    prior_citations = state.get("prior_citations", []) if followup_memory else []
+    citation_source = prior_citations or chunks
 
     all_citations = [
         {
@@ -71,24 +161,53 @@ def generate_answer(state: RAGState, client: OpenAI | None = None) -> dict:
             "parent_chunk_id": ch.get("parent_chunk_id", ""),
             "is_opinion": False,
         }
-        for i, ch in enumerate(chunks[:5])
+        for i, ch in enumerate(citation_source[:5])
     ]
-    n = len(chunks[:5])
+    n = len(citation_source[:5])
     context = "\n\n".join(
         f"[{i + 1}] {ch['citation']}: {ch['text'][:800]}"
         for i, ch in enumerate(chunks[:5])
     )
 
-    if state.get("followup_routing") == "memory":
-        prior_answer = state.get("prior_answer_professional", "")
-        prior_plain = state.get("prior_answer_plain", "")
-        if prior_answer or prior_plain:
-            conversation_context = "\n\n".join(filter(None, [
-                f"Vorherige fachliche Antwort: {prior_answer}",
-                f"Vorherige einfache Antwort: {prior_plain}",
-                f"Vorherige Turn-Intents: {', '.join(state.get('turn_intents', []))}",
-            ]))
-            context = "\n\n".join(filter(None, [conversation_context, context]))
+    prior_answer = state.get("prior_answer_professional", "")
+    prior_plain = state.get("prior_answer_plain", "")
+
+    if followup_memory and (prior_answer or prior_plain):
+        valid_numbers = ", ".join(
+            sorted({c["label"][1:-1] for c in all_citations if c.get("label", "").startswith("[") and c.get("label", "").endswith("]")}, key=int)
+        )
+        rewritten = _rewrite_from_memory(
+            llm,
+            query=state["user_query"],
+            prior_answer=prior_answer,
+            prior_plain=prior_plain,
+            turn_intents=state.get("turn_intents", []),
+            valid_numbers=valid_numbers,
+        )
+        pro = rewritten.get("answer_professional", "")
+        plain = rewritten.get("answer_plain", "")
+        full = "\n\n".join(filter(None, [pro, plain]))
+
+        used_indices: set[int] = set()
+        for bracket_content in re.findall(r'\[([^\]]+)\]', full):
+            for num in re.findall(r'\d+', bracket_content):
+                used_indices.add(int(num))
+        citations = [c for c in all_citations if int(c["label"][1:-1]) in used_indices]
+
+        return {
+            "answer_professional": pro,
+            "answer_plain": plain,
+            "citations": citations,
+            "disclaimer": DISCLAIMER,
+        }
+
+    if followup_memory and (prior_answer or prior_plain):
+        conversation_context = "\n\n".join(filter(None, [
+            f"Vorherige fachliche Antwort: {prior_answer}",
+            f"Vorherige einfache Antwort: {prior_plain}",
+            f"Vorherige Turn-Intents: {', '.join(state.get('turn_intents', []))}",
+        ]))
+        context = "\n\n".join(filter(None, [conversation_context, context]))
 
     # Stage 1: extract verbatim sentences from chunks
     extracted = _extract(llm, state["user_query"], context)

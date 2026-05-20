@@ -13,11 +13,13 @@ def search_guidelines_tool(
     Core RAG retrieval tool. Returns ranked chunks with citation metadata.
     Suitable for use as a LangGraph tool function.
     """
+    candidate_pool_size = min(20, max(top_k, top_k * 3))
+
     candidates = hybrid_search(
         query=query,
         guideline_id=guideline_id,
         grade_filter=grade,
-        top_k=20,
+        top_k=candidate_pool_size,
     )
     reranked = rerank(query=query, chunks=candidates, top_k=top_k)
     expanded = expand_to_parents(reranked)

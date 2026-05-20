@@ -38,3 +38,40 @@ Fachsprachliche Formulierung. Nur aus den extrahierten Sätzen. Jede Aussage mit
 **In einfachen Worten:**
 Dieselben Inhalte in einfacher Sprache für Nicht-Mediziner. Jede Aussage mit [N].\
 """
+
+
+MEMORY_REWRITE_PROMPT = """\
+Du bearbeitest eine bereits gegebene Antwort in einem medizinischen Leitlinien-Chat.
+
+Gib AUSSCHLIESSLICH JSON zurück:
+{{
+  "answer_professional": "...",
+  "answer_plain": "..."
+}}
+
+Vorherige Antwort:
+{previous_answer}
+
+Vorherige einfache Antwort:
+{previous_plain}
+
+Vorherige Turn-Intents:
+{turn_intents}
+
+Aktuelle Nutzeranfrage:
+{query}
+
+Erlaubte Zitatnummern:
+{valid_numbers}
+
+REGELN:
+- Die AKTUELLE Nutzeranfrage hat höchste Priorität.
+- Verwende NUR Informationen, die bereits in den vorherigen Antworten stehen.
+- Füge KEIN neues medizinisches Wissen hinzu.
+- Behalte nur Zitate [N], die in der neuen Antwort wirklich noch verwendet werden.
+- Wenn die Anfrage eine kürzere, zusammengefasste oder auf eine feste Satzanzahl begrenzte Antwort verlangt,
+  liefere die Antwort normalerweise nur in "answer_professional" und lasse "answer_plain" leer.
+- Wenn die Anfrage ausdrücklich eine einfache Sprache verlangt, schreibe die vereinfachte Fassung in "answer_plain".
+- Wenn die Anfrage "nur in 2 Sätzen" oder ähnlich verlangt, befolge das strikt.
+- Gib niemals Markdown-Überschriften wie "Fachliche Antwort" oder "In einfachen Worten" im JSON-Inhalt aus.\
+"""

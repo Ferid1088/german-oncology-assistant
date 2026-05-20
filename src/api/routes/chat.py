@@ -20,6 +20,15 @@ DEFAULT_USER_ROLE = os.getenv("DEFAULT_USER_ROLE", "user")
 DEFAULT_ALLOWED_SOURCES = ["guidelines"]
 
 
+def _combine_answer_parts(answer_professional: str, answer_plain: str) -> str:
+    parts = []
+    if answer_professional:
+        parts.append(f"Fachliche Antwort:\n{answer_professional}")
+    if answer_plain:
+        parts.append(f"In einfachen Worten:\n{answer_plain}")
+    return "\n\n".join(parts).strip()
+
+
 def get_graph():
     global _graph
     if _graph is None:
@@ -56,7 +65,10 @@ def _save_session_memory(session_id: str, final_state: dict, user_query: str) ->
         previous = _session_memory.get(session_id, {})
         messages = list(previous.get("messages", []))
         messages.append(HumanMessage(content=user_query))
-        messages.append(AIMessage(content=final_state["answer_professional"]))
+        messages.append(AIMessage(content=_combine_answer_parts(
+            final_state.get("answer_professional", ""),
+            final_state.get("answer_plain", ""),
+        )))
         _session_memory[session_id] = {
             "messages": messages[-12:],
             "prior_answer_professional": final_state.get("answer_professional", ""),
@@ -127,7 +139,10 @@ def chat(request: ChatRequest):
             graph.update_state(
                 config,
                 {
-                    "messages": [AIMessage(content=final_state["answer_professional"])],
+                    "messages": [AIMessage(content=_combine_answer_parts(
+                        final_state.get("answer_professional", ""),
+                        final_state.get("answer_plain", ""),
+                    ))],
                     "prior_answer_professional": final_state["answer_professional"],
                     "prior_answer_plain": final_state["answer_plain"],
                     "prior_citations": final_state["citations"],
