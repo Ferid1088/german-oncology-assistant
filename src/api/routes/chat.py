@@ -81,6 +81,10 @@ def chat(request: ChatRequest):
             }.items() if v},
             intent="",
             query_decomposition=[],
+            requires_clarification=False,
+            missing_clinical_dimensions=[],
+            clarification_rationale=None,
+            expected_clarification=None,
             user_role=DEFAULT_USER_ROLE,
             allowed_sources=DEFAULT_ALLOWED_SOURCES,
             retrieved_chunks=[],
@@ -135,6 +139,10 @@ def chat(request: ChatRequest):
             "blocked": final_state["input_blocked"] or final_state["output_blocked"],
             "turn_intents": final_state.get("turn_intents", []),
             "followup_routing": final_state.get("followup_routing", "retrieve"),
+            "requires_clarification": final_state.get("requires_clarification", False),
+            "missing_clinical_dimensions": final_state.get("missing_clinical_dimensions", []),
+            "clarification_rationale": final_state.get("clarification_rationale"),
+            "expected_clarification": final_state.get("expected_clarification"),
         }
     except Exception as exc:
         payload = {
@@ -144,6 +152,10 @@ def chat(request: ChatRequest):
             "disclaimer": "",
             "tool_calls": [],
             "blocked": False,
+            "requires_clarification": False,
+            "missing_clinical_dimensions": [],
+            "clarification_rationale": None,
+            "expected_clarification": None,
         }
 
     body = f"data: {json.dumps(payload, ensure_ascii=False)}\n\ndata: [DONE]\n\n"

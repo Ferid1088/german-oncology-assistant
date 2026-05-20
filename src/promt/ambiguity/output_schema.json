@@ -1,0 +1,11 @@
+{
+  "rewritten_query": "<präzise deutsche Suchanfrage für eine medizinische Vektordatenbank>",
+  "guideline_id": "<'' | 'mamma' | 'krk' | 'lunge' | 'prosta'>",
+  "grade": "<'' | 'A' | 'B' | '0'>",
+  "chunk_type": "<'' | 'recommendation' | 'section'>",
+  "intent": "<'factual' | 'recommendation' | 'comparison' | 'external'>",
+  "requires_clarification": false,
+  "missing_clinical_dimensions": [],
+  "clarification_rationale": null,
+  "expected_clarification": null
+}

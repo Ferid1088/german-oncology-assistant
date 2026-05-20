@@ -1,0 +1,321 @@
+{
+  "generated_at": "2026-05-20T09:52:04.596401+00:00",
+  "dataset_name": "evaluation-dataset",
+  "aligned_schema": "docs/evaluation-dataset.schema.json",
+  "aligned_documents": [
+    "docs/project_concept.md",
+    "docs/testing-and-evaluation-strategy.md"
+  ],
+  "recommended_file_layout": {
+    "main_eval_dataset": "data/eval/evaluation-dataset.json",
+    "future_guardrail_dataset": "data/eval/guardrail-dataset.json",
+    "future_smoke_dataset": "data/eval/smoke-dataset.json",
+    "structure_reference": "data/eval/evaluation-dataset.structure.json"
+  },
+  "target_dataset_size": 30,
+  "documented_distribution": {
+    "recommendation": 10,
+    "factual": 6,
+    "evidence": 5,
+    "comparison": 4,
+    "drug_lookup": 3,
+    "external": 2
+  },
+  "current_generation_mode": "bootstrap_without_chunk_exports",
+  "source_registry": [
+    {
+      "guideline_id": "mamma",
+      "title": "S3-Leitlinie Mammakarzinom",
+      "filename": "mammakarzinom_v4.4.pdf",
+      "source_url": "https://www.leitlinienprogramm-onkologie.de/fileadmin/user_upload/Downloads/Leitlinien/Mammakarzinom_4_0/Version_4.4/LL_Mammakarzinom_Langversion_4.4.pdf"
+    },
+    {
+      "guideline_id": "krk",
+      "title": "S3-Leitlinie Kolorektales Karzinom",
+      "filename": "kolorektales_v3.0.pdf",
+      "source_url": "https://www.leitlinienprogramm-onkologie.de/fileadmin/user_upload/Downloads/Leitlinien/Kolorektales_Karzinom/Version_3/LL_KRK_Langversion_3.0.pdf"
+    },
+    {
+      "guideline_id": "lunge",
+      "title": "S3-Leitlinie Lungenkarzinom",
+      "filename": "lungenkarzinom_v4.0.pdf",
+      "source_url": "https://www.leitlinienprogramm-onkologie.de/fileadmin/user_upload/Downloads/Leitlinien/Lungenkarzinom/Version_4/LL_Lungenkarzinom_Langversion_4.0.pdf"
+    },
+    {
+      "guideline_id": "prosta",
+      "title": "S3-Leitlinie Prostatakarzinom",
+      "filename": "prostatakarzinom_v8.0.pdf",
+      "source_url": "https://www.leitlinienprogramm-onkologie.de/fileadmin/user_upload/Downloads/Leitlinien/Prostatatkarzinom/Version_8/LL_Prostatakarzinom_Langversion_8.0.pdf"
+    }
+  ],
+  "field_groups_for_next_evaluation_steps": {
+    "retrieval_and_citation": [
+      "source_chunk_ids",
+      "gold_chunk_ids",
+      "gold_sections",
+      "gold_pages",
+      "required_citations",
+      "expected_filters"
+    ],
+    "answer_quality_and_ragas": [
+      "question",
+      "expected_answer",
+      "expected_answer_plain_language",
+      "expected_behavior",
+      "difficulty"
+    ],
+    "recommendation_fidelity": [
+      "expected_recommendation_metadata",
+      "claim_verdict"
+    ],
+    "tool_and_routing_checks": [
+      "question_type",
+      "guideline_scope",
+      "expected_tools",
+      "requires_comparison",
+      "needs_pubmed"
+    ],
+    "guardrail_related_flags": [
+      "should_refuse",
+      "should_redact_pii",
+      "expected_behavior"
+    ],
+    "clarification_behavior": [
+      "requires_clarification",
+      "missing_clinical_dimensions",
+      "clarification_rationale",
+      "expected_clarification"
+    ],
+    "answer_shape_and_ux": [
+      "expected_answer_format",
+      "expected_answer_sections"
+    ],
+    "retrieval_debugging": [
+      "retrieval_challenge_types",
+      "expected_filters",
+      "required_citations"
+    ],
+    "ab_and_regression_reuse": [
+      "dataset_split",
+      "question_type",
+      "difficulty",
+      "guideline_scope",
+      "expected_tools"
+    ]
+  },
+  "required_fields": [
+    "id",
+    "dataset_split",
+    "question",
+    "question_type",
+    "guideline_scope",
+    "requires_comparison",
+    "needs_pubmed",
+    "requires_clarification",
+    "missing_clinical_dimensions",
+    "should_refuse",
+    "should_redact_pii"
+  ],
+  "field_reference": {
+    "id": {
+      "type": "string",
+      "description": "Unique evaluation item identifier."
+    },
+    "dataset_split": {
+      "type": "string",
+      "description": "Logical dataset split used for scoring or test execution.",
+      "enum": [
+        "eval",
+        "ab_test",
+        "guardrail",
+        "smoke"
+      ]
+    },
+    "expected_behavior": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Expected high-level system behavior for this item, especially useful for guardrail and smoke-test cases.",
+      "enum": [
+        "answer",
+        "refuse",
+        "redact_and_answer",
+        "warn",
+        "ask_clarification",
+        null
+      ]
+    },
+    "question": {
+      "type": "string",
+      "description": "User question or prompt in German."
+    },
+    "question_type": {
+      "type": "string",
+      "description": "Primary question category aligned with routing and tool behavior.",
+      "enum": [
+        "factual",
+        "recommendation",
+        "evidence",
+        "comparison",
+        "lookup_empfehlung",
+        "drug_lookup",
+        "external",
+        "guardrail"
+      ]
+    },
+    "difficulty": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Estimated difficulty of the evaluation item.",
+      "enum": [
+        "easy",
+        "medium",
+        "hard",
+        null
+      ]
+    },
+    "guideline_scope": {
+      "type": "array",
+      "description": "Guidelines relevant to the question."
+    },
+    "source_chunk_ids": {
+      "type": "array",
+      "description": "Seed source chunks from which the question was derived."
+    },
+    "expected_answer": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Reference answer used for correctness and answer-quality evaluation."
+    },
+    "expected_answer_plain_language": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Optional reference answer for the plain-language response layer."
+    },
+    "expected_recommendation_metadata": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "Expected recommendation-level metadata that should be preserved in recommendation-focused answers."
+    },
+    "gold_chunk_ids": {
+      "type": "array",
+      "description": "Gold retrieval chunk identifiers considered relevant for the question."
+    },
+    "gold_sections": {
+      "type": "array",
+      "description": "Relevant section paths or recommendation labels expected in support of the answer."
+    },
+    "gold_pages": {
+      "type": "array",
+      "description": "Relevant page numbers expected in retrieval results or citations."
+    },
+    "required_citations": {
+      "type": "array",
+      "description": "Citation anchors that should appear in a grounded answer or be directly traceable during evaluation."
+    },
+    "expected_filters": {
+      "type": "object",
+      "description": "Optional metadata filters expected to be relevant to the query."
+    },
+    "requires_comparison": {
+      "type": "boolean",
+      "description": "Whether the system should compare multiple guidelines or sources."
+    },
+    "needs_pubmed": {
+      "type": "boolean",
+      "description": "Whether the question is expected to trigger external PubMed usage."
+    },
+    "requires_clarification": {
+      "type": "boolean",
+      "description": "Whether the query is clinically underspecified and the system should ask a clarification question before retrieval or answer generation."
+    },
+    "missing_clinical_dimensions": {
+      "type": "array",
+      "description": "Structured list of missing clinical context dimensions needed for a safe answer."
+    },
+    "clarification_rationale": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Human-readable explanation of why clarification is needed."
+    },
+    "expected_clarification": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Expected clarification question the assistant should ask before retrieval or answer generation."
+    },
+    "claim_verdict": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Expected verdict for claim-verification or contradiction-trap style prompts.",
+      "enum": [
+        "supported",
+        "contradicted",
+        "misleading",
+        "not_in_guideline",
+        null
+      ]
+    },
+    "expected_answer_format": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Expected response shape at the UX layer.",
+      "enum": [
+        "concise",
+        "structured",
+        "comparative",
+        "explanatory",
+        "refusal",
+        null
+      ]
+    },
+    "expected_answer_sections": {
+      "type": "array",
+      "description": "Expected logical answer blocks such as recommendation, evidence, citations, plain_language, or clarification."
+    },
+    "retrieval_challenge_types": {
+      "type": "array",
+      "description": "Multi-label taxonomy describing why retrieval may be difficult for this item."
+    },
+    "should_refuse": {
+      "type": "boolean",
+      "description": "Whether the system should refuse or redirect the request."
+    },
+    "should_redact_pii": {
+      "type": "boolean",
+      "description": "Whether the input contains PII that should be redacted during processing."
+    },
+    "expected_tools": {
+      "type": "array",
+      "description": "Optional list of expected tools or tool families likely to be used."
+    },
+    "notes": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Optional human curation notes about the item."
+    }
+  },
+  "bootstrap_notes": [
+    "This structure file mirrors the documented schema and evaluation workflow.",
+    "When chunk exports are unavailable, generated items use seed:* identifiers as placeholders for later manual grounding.",
+    "Before formal Ragas, regression, or A/B runs, validate answers, gold evidence, and page ranges against exported chunks."
+  ]
+}

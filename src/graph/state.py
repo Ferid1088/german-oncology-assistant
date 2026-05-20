@@ -13,6 +13,10 @@ class RAGState(TypedDict):
     metadata_filters: dict[str, str]    # guideline_id, grade, chunk_type
     intent: str                          # factual | recommendation | comparison | external
     query_decomposition: list[str]
+    requires_clarification: bool
+    missing_clinical_dimensions: list[str]
+    clarification_rationale: str | None
+    expected_clarification: str | None
     user_role: str
     allowed_sources: list[str]
 

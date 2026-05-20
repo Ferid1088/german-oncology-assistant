@@ -1,0 +1,1968 @@
+[
+  {
+    "id": "eval-001-recommendation",
+    "dataset_split": "eval",
+    "expected_behavior": "ask_clarification",
+    "question": "Welche Chemotherapie wird empfohlen?",
+    "question_type": "recommendation",
+    "difficulty": "medium",
+    "guideline_scope": [
+      "mamma",
+      "krk",
+      "lunge",
+      "prosta"
+    ],
+    "source_chunk_ids": [],
+    "expected_answer": null,
+    "expected_answer_plain_language": null,
+    "expected_recommendation_metadata": null,
+    "gold_chunk_ids": [],
+    "gold_sections": [],
+    "gold_pages": [],
+    "required_citations": [],
+    "expected_filters": {
+      "guideline_id": null,
+      "recommendation_grade": null,
+      "chunk_type": null
+    },
+    "requires_comparison": false,
+    "needs_pubmed": false,
+    "requires_clarification": true,
+    "missing_clinical_dimensions": [
+      "tumor_entity",
+      "disease_stage",
+      "therapy_setting",
+      "molecular_subtype"
+    ],
+    "clarification_rationale": "Die Anfrage ist klinisch zu unspezifisch; die Empfehlung hängt von Tumorart, Krankheitsstadium, Therapiesetting und gegebenenfalls molekularem Subtyp ab.",
+    "expected_clarification": "Bitte präzisieren Sie, für welche Tumorart und klinische Situation Sie die Chemotherapieempfehlung suchen, zum Beispiel adjuvant, neoadjuvant oder metastasiert.",
+    "claim_verdict": null,
+    "expected_answer_format": null,
+    "expected_answer_sections": [
+      "clarification"
+    ],
+    "retrieval_challenge_types": [],
+    "should_refuse": false,
+    "should_redact_pii": false,
+    "expected_tools": [],
+    "notes": "Bootstrap eval item generated automatically from documented evaluation coverage. Replace seed:* identifiers, pages, and answer wording after chunk export and manual review. This item is intended to test clarification behavior before retrieval. No chunk export was available, so this item remains in bootstrap mode."
+  },
+  {
+    "id": "eval-002-recommendation",
+    "dataset_split": "eval",
+    "expected_behavior": "answer",
+    "question": "Welche Empfehlung nennt die S3-Leitlinie Mammakarzinom zur adjuvanten endokrinen Therapie?",
+    "question_type": "recommendation",
+    "difficulty": "medium",
+    "guideline_scope": [
+      "mamma"
+    ],
+    "source_chunk_ids": [
+      "seed:mamma:recommendation:adjuvante_endokrine_therapie"
+    ],
+    "expected_answer": "S3-Leitlinie Mammakarzinom enthält eine Empfehlung zu adjuvante endokrine Therapie. Für den finalen Goldstandard sollten Wortlaut, Empfehlungsgrad und tragende Evidenz gegen die referenzierten Gold-Chunks validiert werden.",
+    "expected_answer_plain_language": "Einfach erklärt soll die Antwort verständlich zusammenfassen, was die Leitlinie zu adjuvante endokrine Therapie sagt. Die finale Formulierung sollte nach manueller Validierung vereinfacht werden.",
+    "expected_recommendation_metadata": {
+      "recommendation_id": null,
+      "recommendation_grade": null,
+      "consensus_strength": null,
+      "evidence_level": null
+    },
+    "gold_chunk_ids": [
+      "seed:mamma:recommendation:adjuvante_endokrine_therapie"
+    ],
+    "gold_sections": [
+      "Systemtherapie",
+      "Endokrine Therapie"
+    ],
+    "gold_pages": [],
+    "required_citations": [
+      {
+        "chunk_id": "seed:mamma:recommendation:adjuvante_endokrine_therapie",
+        "page_start": null,
+        "page_end": null,
+        "section_path": [
+          "Systemtherapie",
+          "Endokrine Therapie"
+        ],
+        "recommendation_id": null,
+        "citation_importance": "must"
+      }
+    ],
+    "expected_filters": {
+      "guideline_id": "mamma",
+      "recommendation_grade": null,
+      "chunk_type": "recommendation"
+    },
+    "requires_comparison": false,
+    "needs_pubmed": false,
+    "requires_clarification": false,
+    "missing_clinical_dimensions": [],
+    "clarification_rationale": null,
+    "expected_clarification": null,
+    "claim_verdict": null,
+    "expected_answer_format": "concise",
+    "expected_answer_sections": [
+      "recommendation",
+      "citations",
+      "plain_language"
+    ],
+    "retrieval_challenge_types": [
+      "recommendation_extraction",
+      "metadata_filtering"
+    ],
+    "should_refuse": false,
+    "should_redact_pii": false,
+    "expected_tools": [
+      "search_guidelines"
+    ],
+    "notes": "Bootstrap eval item generated automatically from documented evaluation coverage. Replace seed:* identifiers, pages, and answer wording after chunk export and manual review. No chunk export was available, so this item remains in bootstrap mode."
+  },
+  {
+    "id": "eval-003-recommendation",
+    "dataset_split": "eval",
+    "expected_behavior": "answer",
+    "question": "Welche Empfehlung beschreibt die Leitlinie Mammakarzinom zur psychoonkologischen Unterstützung?",
+    "question_type": "recommendation",
+    "difficulty": "easy",
+    "guideline_scope": [
+      "mamma"
+    ],
+    "source_chunk_ids": [
+      "seed:mamma:recommendation:psychoonkologische_unterstützung"
+    ],
+    "expected_answer": "S3-Leitlinie Mammakarzinom enthält eine Empfehlung zu psychoonkologische Unterstützung. Für den finalen Goldstandard sollten Wortlaut, Empfehlungsgrad und tragende Evidenz gegen die referenzierten Gold-Chunks validiert werden.",
+    "expected_answer_plain_language": "Einfach erklärt soll die Antwort verständlich zusammenfassen, was die Leitlinie zu psychoonkologische Unterstützung sagt. Die finale Formulierung sollte nach manueller Validierung vereinfacht werden.",
+    "expected_recommendation_metadata": {
+      "recommendation_id": null,
+      "recommendation_grade": null,
+      "consensus_strength": null,
+      "evidence_level": null
+    },
+    "gold_chunk_ids": [
+      "seed:mamma:recommendation:psychoonkologische_unterstützung"
+    ],
+    "gold_sections": [
+      "Supportive Therapie",
+      "Psychoonkologie"
+    ],
+    "gold_pages": [],
+    "required_citations": [
+      {
+        "chunk_id": "seed:mamma:recommendation:psychoonkologische_unterstützung",
+        "page_start": null,
+        "page_end": null,
+        "section_path": [
+          "Supportive Therapie",
+          "Psychoonkologie"
+        ],
+        "recommendation_id": null,
+        "citation_importance": "must"
+      }
+    ],
+    "expected_filters": {
+      "guideline_id": "mamma",
+      "recommendation_grade": null,
+      "chunk_type": "recommendation"
+    },
+    "requires_comparison": false,
+    "needs_pubmed": false,
+    "requires_clarification": false,
+    "missing_clinical_dimensions": [],
+    "clarification_rationale": null,
+    "expected_clarification": null,
+    "claim_verdict": null,
+    "expected_answer_format": "concise",
+    "expected_answer_sections": [
+      "recommendation",
+      "citations",
+      "plain_language"
+    ],
+    "retrieval_challenge_types": [
+      "recommendation_extraction",
+      "metadata_filtering"
+    ],
+    "should_refuse": false,
+    "should_redact_pii": false,
+    "expected_tools": [
+      "search_guidelines"
+    ],
+    "notes": "Bootstrap eval item generated automatically from documented evaluation coverage. Replace seed:* identifiers, pages, and answer wording after chunk export and manual review. No chunk export was available, so this item remains in bootstrap mode."
+  },
+  {
+    "id": "eval-004-recommendation",
+    "dataset_split": "eval",
+    "expected_behavior": "answer",
+    "question": "Welche Empfehlung gibt die KRK-Leitlinie zur adjuvanten Therapie beim Kolonkarzinom Stadium III?",
+    "question_type": "recommendation",
+    "difficulty": "medium",
+    "guideline_scope": [
+      "krk"
+    ],
+    "source_chunk_ids": [
+      "seed:krk:recommendation:adjuvante_therapie_beim_kolonkarzinom_stadium_iii"
+    ],
+    "expected_answer": "S3-Leitlinie Kolorektales Karzinom enthält eine Empfehlung zu adjuvante Therapie beim Kolonkarzinom Stadium III. Für den finalen Goldstandard sollten Wortlaut, Empfehlungsgrad und tragende Evidenz gegen die referenzierten Gold-Chunks validiert werden.",
+    "expected_answer_plain_language": "Einfach erklärt soll die Antwort verständlich zusammenfassen, was die Leitlinie zu adjuvante Therapie beim Kolonkarzinom Stadium III sagt. Die finale Formulierung sollte nach manueller Validierung vereinfacht werden.",
+    "expected_recommendation_metadata": {
+      "recommendation_id": null,
+      "recommendation_grade": null,
+      "consensus_strength": null,
+      "evidence_level": null
+    },
+    "gold_chunk_ids": [
+      "seed:krk:recommendation:adjuvante_therapie_beim_kolonkarzinom_stadium_iii"
+    ],
+    "gold_sections": [
+      "Kolonkarzinom",
+      "Adjuvante Therapie"
+    ],
+    "gold_pages": [],
+    "required_citations": [
+      {
+        "chunk_id": "seed:krk:recommendation:adjuvante_therapie_beim_kolonkarzinom_stadium_iii",
+        "page_start": null,
+        "page_end": null,
+        "section_path": [
+          "Kolonkarzinom",
+          "Adjuvante Therapie"
+        ],
+        "recommendation_id": null,
+        "citation_importance": "must"
+      }
+    ],
+    "expected_filters": {
+      "guideline_id": "krk",
+      "recommendation_grade": null,
+      "chunk_type": "recommendation"
+    },
+    "requires_comparison": false,
+    "needs_pubmed": false,
+    "requires_clarification": false,
+    "missing_clinical_dimensions": [],
+    "clarification_rationale": null,
+    "expected_clarification": null,
+    "claim_verdict": null,
+    "expected_answer_format": "concise",
+    "expected_answer_sections": [
+      "recommendation",
+      "citations",
+      "plain_language"
+    ],
+    "retrieval_challenge_types": [
+      "recommendation_extraction",
+      "metadata_filtering"
+    ],
+    "should_refuse": false,
+    "should_redact_pii": false,
+    "expected_tools": [
+      "search_guidelines"
+    ],
+    "notes": "Bootstrap eval item generated automatically from documented evaluation coverage. Replace seed:* identifiers, pages, and answer wording after chunk export and manual review. No chunk export was available, so this item remains in bootstrap mode."
+  },
+  {
+    "id": "eval-005-recommendation",
+    "dataset_split": "eval",
+    "expected_behavior": "answer",
+    "question": "Welche Empfehlung nennt die KRK-Leitlinie zur Mismatch-Repair- bzw. MSI-Testung?",
+    "question_type": "recommendation",
+    "difficulty": "medium",
+    "guideline_scope": [
+      "krk"
+    ],
+    "source_chunk_ids": [
+      "seed:krk:recommendation:mismatch_repair_oder_msi_testung"
+    ],
+    "expected_answer": "S3-Leitlinie Kolorektales Karzinom enthält eine Empfehlung zu Mismatch-Repair- oder MSI-Testung. Für den finalen Goldstandard sollten Wortlaut, Empfehlungsgrad und tragende Evidenz gegen die referenzierten Gold-Chunks validiert werden.",
+    "expected_answer_plain_language": "Einfach erklärt soll die Antwort verständlich zusammenfassen, was die Leitlinie zu Mismatch-Repair- oder MSI-Testung sagt. Die finale Formulierung sollte nach manueller Validierung vereinfacht werden.",
+    "expected_recommendation_metadata": {
+      "recommendation_id": null,
+      "recommendation_grade": null,
+      "consensus_strength": null,
+      "evidence_level": null
+    },
+    "gold_chunk_ids": [
+      "seed:krk:recommendation:mismatch_repair_oder_msi_testung"
+    ],
+    "gold_sections": [
+      "Diagnostik",
+      "Molekulare Marker"
+    ],
+    "gold_pages": [],
+    "required_citations": [
+      {
+        "chunk_id": "seed:krk:recommendation:mismatch_repair_oder_msi_testung",
+        "page_start": null,
+        "page_end": null,
+        "section_path": [
+          "Diagnostik",
+          "Molekulare Marker"
+        ],
+        "recommendation_id": null,
+        "citation_importance": "must"
+      }
+    ],
+    "expected_filters": {
+      "guideline_id": "krk",
+      "recommendation_grade": null,
+      "chunk_type": "recommendation"
+    },
+    "requires_comparison": false,
+    "needs_pubmed": false,
+    "requires_clarification": false,
+    "missing_clinical_dimensions": [],
+    "clarification_rationale": null,
+    "expected_clarification": null,
+    "claim_verdict": null,
+    "expected_answer_format": "concise",
+    "expected_answer_sections": [
+      "recommendation",
+      "citations",
+      "plain_language"
+    ],
+    "retrieval_challenge_types": [
+      "recommendation_extraction",
+      "metadata_filtering"
+    ],
+    "should_refuse": false,
+    "should_redact_pii": false,
+    "expected_tools": [
+      "search_guidelines"
+    ],
+    "notes": "Bootstrap eval item generated automatically from documented evaluation coverage. Replace seed:* identifiers, pages, and answer wording after chunk export and manual review. No chunk export was available, so this item remains in bootstrap mode."
+  },
+  {
+    "id": "eval-006-recommendation",
+    "dataset_split": "eval",
+    "expected_behavior": "answer",
+    "question": "Welche Empfehlung gibt die KRK-Leitlinie zur Nachsorge nach kurativer Therapie?",
+    "question_type": "recommendation",
+    "difficulty": "medium",
+    "guideline_scope": [
+      "krk"
+    ],
+    "source_chunk_ids": [
+      "seed:krk:recommendation:nachsorge_nach_kurativer_therapie"
+    ],
+    "expected_answer": "S3-Leitlinie Kolorektales Karzinom enthält eine Empfehlung zu Nachsorge nach kurativer Therapie. Für den finalen Goldstandard sollten Wortlaut, Empfehlungsgrad und tragende Evidenz gegen die referenzierten Gold-Chunks validiert werden.",
+    "expected_answer_plain_language": "Einfach erklärt soll die Antwort verständlich zusammenfassen, was die Leitlinie zu Nachsorge nach kurativer Therapie sagt. Die finale Formulierung sollte nach manueller Validierung vereinfacht werden.",
+    "expected_recommendation_metadata": {
+      "recommendation_id": null,
+      "recommendation_grade": null,
+      "consensus_strength": null,
+      "evidence_level": null
+    },
+    "gold_chunk_ids": [
+      "seed:krk:recommendation:nachsorge_nach_kurativer_therapie"
+    ],
+    "gold_sections": [
+      "Nachsorge",
+      "Verlaufskontrolle"
+    ],
+    "gold_pages": [],
+    "required_citations": [
+      {
+        "chunk_id": "seed:krk:recommendation:nachsorge_nach_kurativer_therapie",
+        "page_start": null,
+        "page_end": null,
+        "section_path": [
+          "Nachsorge",
+          "Verlaufskontrolle"
+        ],
+        "recommendation_id": null,
+        "citation_importance": "must"
+      }
+    ],
+    "expected_filters": {
+      "guideline_id": "krk",
+      "recommendation_grade": null,
+      "chunk_type": "recommendation"
+    },
+    "requires_comparison": false,
+    "needs_pubmed": false,
+    "requires_clarification": false,
+    "missing_clinical_dimensions": [],
+    "clarification_rationale": null,
+    "expected_clarification": null,
+    "claim_verdict": null,
+    "expected_answer_format": "concise",
+    "expected_answer_sections": [
+      "recommendation",
+      "citations",
+      "plain_language"
+    ],
+    "retrieval_challenge_types": [
+      "recommendation_extraction",
+      "metadata_filtering"
+    ],
+    "should_refuse": false,
+    "should_redact_pii": false,
+    "expected_tools": [
+      "search_guidelines"
+    ],
+    "notes": "Bootstrap eval item generated automatically from documented evaluation coverage. Replace seed:* identifiers, pages, and answer wording after chunk export and manual review. No chunk export was available, so this item remains in bootstrap mode."
+  },
+  {
+    "id": "eval-007-recommendation",
+    "dataset_split": "eval",
+    "expected_behavior": "ask_clarification",
+    "question": "Welche Therapie wird beim Lungenkarzinom empfohlen?",
+    "question_type": "recommendation",
+    "difficulty": "medium",
+    "guideline_scope": [
+      "lunge"
+    ],
+    "source_chunk_ids": [],
+    "expected_answer": null,
+    "expected_answer_plain_language": null,
+    "expected_recommendation_metadata": null,
+    "gold_chunk_ids": [],
+    "gold_sections": [],
+    "gold_pages": [],
+    "required_citations": [],
+    "expected_filters": {
+      "guideline_id": "lunge",
+      "recommendation_grade": null,
+      "chunk_type": null
+    },
+    "requires_comparison": false,
+    "needs_pubmed": false,
+    "requires_clarification": true,
+    "missing_clinical_dimensions": [
+      "histology",
+      "disease_stage",
+      "therapy_setting",
+      "biomarker_status"
+    ],
+    "clarification_rationale": "Die Tumorart ist bekannt, aber Histologie, Stadium, Therapiesetting und Biomarkerstatus fehlen für eine sichere Leitlinienantwort.",
+    "expected_clarification": "Bitte präzisieren Sie, ob es um ein kleinzelliges oder nicht-kleinzelliges Lungenkarzinom geht und ob die Situation lokalisiert, lokal fortgeschritten oder metastasiert ist.",
+    "claim_verdict": null,
+    "expected_answer_format": null,
+    "expected_answer_sections": [
+      "clarification"
+    ],
+    "retrieval_challenge_types": [],
+    "should_refuse": false,
+    "should_redact_pii": false,
+    "expected_tools": [],
+    "notes": "Bootstrap eval item generated automatically from documented evaluation coverage. Replace seed:* identifiers, pages, and answer wording after chunk export and manual review. This item is intended to test clarification behavior before retrieval. No chunk export was available, so this item remains in bootstrap mode."
+  },
+  {
+    "id": "eval-008-recommendation",
+    "dataset_split": "eval",
+    "expected_behavior": "answer",
+    "question": "Welche Empfehlung gibt die Lungenkarzinom-Leitlinie zum Staging vor einem kurativen Therapieversuch?",
+    "question_type": "recommendation",
+    "difficulty": "medium",
+    "guideline_scope": [
+      "lunge"
+    ],
+    "source_chunk_ids": [
+      "seed:lunge:recommendation:staging_vor_kurativem_therapieversuch"
+    ],
+    "expected_answer": "S3-Leitlinie Lungenkarzinom enthält eine Empfehlung zu Staging vor kurativem Therapieversuch. Für den finalen Goldstandard sollten Wortlaut, Empfehlungsgrad und tragende Evidenz gegen die referenzierten Gold-Chunks validiert werden.",
+    "expected_answer_plain_language": "Einfach erklärt soll die Antwort verständlich zusammenfassen, was die Leitlinie zu Staging vor kurativem Therapieversuch sagt. Die finale Formulierung sollte nach manueller Validierung vereinfacht werden.",
+    "expected_recommendation_metadata": {
+      "recommendation_id": null,
+      "recommendation_grade": null,
+      "consensus_strength": null,
+      "evidence_level": null
+    },
+    "gold_chunk_ids": [
+      "seed:lunge:recommendation:staging_vor_kurativem_therapieversuch"
+    ],
+    "gold_sections": [
+      "Staging",
+      "Diagnostik"
+    ],
+    "gold_pages": [],
+    "required_citations": [
+      {
+        "chunk_id": "seed:lunge:recommendation:staging_vor_kurativem_therapieversuch",
+        "page_start": null,
+        "page_end": null,
+        "section_path": [
+          "Staging",
+          "Diagnostik"
+        ],
+        "recommendation_id": null,
+        "citation_importance": "must"
+      }
+    ],
+    "expected_filters": {
+      "guideline_id": "lunge",
+      "recommendation_grade": null,
+      "chunk_type": "recommendation"
+    },
+    "requires_comparison": false,
+    "needs_pubmed": false,
+    "requires_clarification": false,
+    "missing_clinical_dimensions": [],
+    "clarification_rationale": null,
+    "expected_clarification": null,
+    "claim_verdict": null,
+    "expected_answer_format": "concise",
+    "expected_answer_sections": [
+      "recommendation",
+      "citations",
+      "plain_language"
+    ],
+    "retrieval_challenge_types": [
+      "recommendation_extraction",
+      "metadata_filtering"
+    ],
+    "should_refuse": false,
+    "should_redact_pii": false,
+    "expected_tools": [
+      "search_guidelines"
+    ],
+    "notes": "Bootstrap eval item generated automatically from documented evaluation coverage. Replace seed:* identifiers, pages, and answer wording after chunk export and manual review. No chunk export was available, so this item remains in bootstrap mode."
+  },
+  {
+    "id": "eval-009-recommendation",
+    "dataset_split": "eval",
+    "expected_behavior": "ask_clarification",
+    "question": "Welche Therapie wird beim Prostatakarzinom empfohlen?",
+    "question_type": "recommendation",
+    "difficulty": "easy",
+    "guideline_scope": [
+      "prosta"
+    ],
+    "source_chunk_ids": [],
+    "expected_answer": null,
+    "expected_answer_plain_language": null,
+    "expected_recommendation_metadata": null,
+    "gold_chunk_ids": [],
+    "gold_sections": [],
+    "gold_pages": [],
+    "required_citations": [],
+    "expected_filters": {
+      "guideline_id": "prosta",
+      "recommendation_grade": null,
+      "chunk_type": null
+    },
+    "requires_comparison": false,
+    "needs_pubmed": false,
+    "requires_clarification": true,
+    "missing_clinical_dimensions": [
+      "disease_stage",
+      "risk_group",
+      "therapy_setting"
+    ],
+    "clarification_rationale": "Die Erkrankung ist benannt, aber Stadium, Risikokonstellation und Therapiesetting fehlen für eine konkrete Leitlinienempfehlung.",
+    "expected_clarification": "Bitte präzisieren Sie, ob es um ein lokalisiertes, lokal fortgeschrittenes oder metastasiertes Prostatakarzinom geht und welche Risikokonstellation gemeint ist.",
+    "claim_verdict": null,
+    "expected_answer_format": null,
+    "expected_answer_sections": [
+      "clarification"
+    ],
+    "retrieval_challenge_types": [],
+    "should_refuse": false,
+    "should_redact_pii": false,
+    "expected_tools": [],
+    "notes": "Bootstrap eval item generated automatically from documented evaluation coverage. Replace seed:* identifiers, pages, and answer wording after chunk export and manual review. This item is intended to test clarification behavior before retrieval. No chunk export was available, so this item remains in bootstrap mode."
+  },
+  {
+    "id": "eval-010-recommendation",
+    "dataset_split": "eval",
+    "expected_behavior": "answer",
+    "question": "Welche Empfehlung gibt die Prostatakarzinom-Leitlinie zur Kombination aus Radiotherapie und Androgendeprivation bei Hochrisiko-Erkrankung?",
+    "question_type": "recommendation",
+    "difficulty": "medium",
+    "guideline_scope": [
+      "prosta"
+    ],
+    "source_chunk_ids": [
+      "seed:prosta:recommendation:kombination_aus_radiotherapie_und_androgendeprivation_bei_hochrisiko"
+    ],
+    "expected_answer": "S3-Leitlinie Prostatakarzinom enthält eine Empfehlung zu Kombination aus Radiotherapie und Androgendeprivation bei Hochrisiko. Für den finalen Goldstandard sollten Wortlaut, Empfehlungsgrad und tragende Evidenz gegen die referenzierten Gold-Chunks validiert werden.",
+    "expected_answer_plain_language": "Einfach erklärt soll die Antwort verständlich zusammenfassen, was die Leitlinie zu Kombination aus Radiotherapie und Androgendeprivation bei Hochrisiko sagt. Die finale Formulierung sollte nach manueller Validierung vereinfacht werden.",
+    "expected_recommendation_metadata": {
+      "recommendation_id": null,
+      "recommendation_grade": null,
+      "consensus_strength": null,
+      "evidence_level": null
+    },
+    "gold_chunk_ids": [
+      "seed:prosta:recommendation:kombination_aus_radiotherapie_und_androgendeprivation_bei_hochrisiko"
+    ],
+    "gold_sections": [
+      "Hochrisiko",
+      "Radiotherapie",
+      "ADT"
+    ],
+    "gold_pages": [],
+    "required_citations": [
+      {
+        "chunk_id": "seed:prosta:recommendation:kombination_aus_radiotherapie_und_androgendeprivation_bei_hochrisiko",
+        "page_start": null,
+        "page_end": null,
+        "section_path": [
+          "Hochrisiko",
+          "Radiotherapie",
+          "ADT"
+        ],
+        "recommendation_id": null,
+        "citation_importance": "must"
+      }
+    ],
+    "expected_filters": {
+      "guideline_id": "prosta",
+      "recommendation_grade": null,
+      "chunk_type": "recommendation"
+    },
+    "requires_comparison": false,
+    "needs_pubmed": false,
+    "requires_clarification": false,
+    "missing_clinical_dimensions": [],
+    "clarification_rationale": null,
+    "expected_clarification": null,
+    "claim_verdict": null,
+    "expected_answer_format": "concise",
+    "expected_answer_sections": [
+      "recommendation",
+      "citations",
+      "plain_language"
+    ],
+    "retrieval_challenge_types": [
+      "recommendation_extraction",
+      "metadata_filtering"
+    ],
+    "should_refuse": false,
+    "should_redact_pii": false,
+    "expected_tools": [
+      "search_guidelines"
+    ],
+    "notes": "Bootstrap eval item generated automatically from documented evaluation coverage. Replace seed:* identifiers, pages, and answer wording after chunk export and manual review. No chunk export was available, so this item remains in bootstrap mode."
+  },
+  {
+    "id": "eval-011-factual",
+    "dataset_split": "eval",
+    "expected_behavior": "answer",
+    "question": "Welche Rolle beschreibt die Mammakarzinom-Leitlinie für die Sentinel-Lymphknotenbiopsie?",
+    "question_type": "factual",
+    "difficulty": "easy",
+    "guideline_scope": [
+      "mamma"
+    ],
+    "source_chunk_ids": [
+      "seed:mamma:factual:rolle_der_sentinel_lymphknotenbiopsie"
+    ],
+    "expected_answer": "S3-Leitlinie Mammakarzinom beschreibt sachlich, welche Aspekte für Rolle der Sentinel-Lymphknotenbiopsie relevant sind. Vor formaler Bewertung sollte die endgültige Referenzantwort mit exportierten Chunks und Seitenangaben präzisiert werden.",
+    "expected_answer_plain_language": "Einfach erklärt soll die Antwort verständlich zusammenfassen, was die Leitlinie zu Rolle der Sentinel-Lymphknotenbiopsie sagt. Die finale Formulierung sollte nach manueller Validierung vereinfacht werden.",
+    "expected_recommendation_metadata": null,
+    "gold_chunk_ids": [
+      "seed:mamma:factual:rolle_der_sentinel_lymphknotenbiopsie"
+    ],
+    "gold_sections": [
+      "Chirurgie",
+      "Axilla"
+    ],
+    "gold_pages": [],
+    "required_citations": [
+      {
+        "chunk_id": "seed:mamma:factual:rolle_der_sentinel_lymphknotenbiopsie",
+        "page_start": null,
+        "page_end": null,
+        "section_path": [
+          "Chirurgie",
+          "Axilla"
+        ],
+        "recommendation_id": null,
+        "citation_importance": "must"
+      }
+    ],
+    "expected_filters": {
+      "guideline_id": "mamma",
+      "recommendation_grade": null,
+      "chunk_type": "section"
+    },
+    "requires_comparison": false,
+    "needs_pubmed": false,
+    "requires_clarification": false,
+    "missing_clinical_dimensions": [],
+    "clarification_rationale": null,
+    "expected_clarification": null,
+    "claim_verdict": null,
+    "expected_answer_format": "explanatory",
+    "expected_answer_sections": [
+      "answer",
+      "citations",
+      "plain_language"
+    ],
+    "retrieval_challenge_types": [
+      "citation_localization"
+    ],
+    "should_refuse": false,
+    "should_redact_pii": false,
+    "expected_tools": [
+      "search_guidelines"
+    ],
+    "notes": "Bootstrap eval item generated automatically from documented evaluation coverage. Replace seed:* identifiers, pages, and answer wording after chunk export and manual review. No chunk export was available, so this item remains in bootstrap mode."
+  },
+  {
+    "id": "eval-012-factual",
+    "dataset_split": "eval",
+    "expected_behavior": "answer",
+    "question": "Welche Untersuchungen gehören laut KRK-Leitlinie zum Staging?",
+    "question_type": "factual",
+    "difficulty": "easy",
+    "guideline_scope": [
+      "krk"
+    ],
+    "source_chunk_ids": [
+      "seed:krk:factual:bestandteile_des_stagings"
+    ],
+    "expected_answer": "S3-Leitlinie Kolorektales Karzinom beschreibt sachlich, welche Aspekte für Bestandteile des Stagings relevant sind. Vor formaler Bewertung sollte die endgültige Referenzantwort mit exportierten Chunks und Seitenangaben präzisiert werden.",
+    "expected_answer_plain_language": "Einfach erklärt soll die Antwort verständlich zusammenfassen, was die Leitlinie zu Bestandteile des Stagings sagt. Die finale Formulierung sollte nach manueller Validierung vereinfacht werden.",
+    "expected_recommendation_metadata": null,
+    "gold_chunk_ids": [
+      "seed:krk:factual:bestandteile_des_stagings"
+    ],
+    "gold_sections": [
+      "Diagnostik",
+      "Staging"
+    ],
+    "gold_pages": [],
+    "required_citations": [
+      {
+        "chunk_id": "seed:krk:factual:bestandteile_des_stagings",
+        "page_start": null,
+        "page_end": null,
+        "section_path": [
+          "Diagnostik",
+          "Staging"
+        ],
+        "recommendation_id": null,
+        "citation_importance": "must"
+      }
+    ],
+    "expected_filters": {
+      "guideline_id": "krk",
+      "recommendation_grade": null,
+      "chunk_type": "section"
+    },
+    "requires_comparison": false,
+    "needs_pubmed": false,
+    "requires_clarification": false,
+    "missing_clinical_dimensions": [],
+    "clarification_rationale": null,
+    "expected_clarification": null,
+    "claim_verdict": null,
+    "expected_answer_format": "explanatory",
+    "expected_answer_sections": [
+      "answer",
+      "citations",
+      "plain_language"
+    ],
+    "retrieval_challenge_types": [
+      "citation_localization"
+    ],
+    "should_refuse": false,
+    "should_redact_pii": false,
+    "expected_tools": [
+      "search_guidelines"
+    ],
+    "notes": "Bootstrap eval item generated automatically from documented evaluation coverage. Replace seed:* identifiers, pages, and answer wording after chunk export and manual review. No chunk export was available, so this item remains in bootstrap mode."
+  },
+  {
+    "id": "eval-013-factual",
+    "dataset_split": "eval",
+    "expected_behavior": "answer",
+    "question": "Welche histologischen und molekularen Angaben sind laut Lungenkarzinom-Leitlinie für die Therapieplanung wichtig?",
+    "question_type": "factual",
+    "difficulty": "medium",
+    "guideline_scope": [
+      "lunge"
+    ],
+    "source_chunk_ids": [
+      "seed:lunge:factual:histologische_und_molekulare_angaben_für_die_therapieplanung"
+    ],
+    "expected_answer": "S3-Leitlinie Lungenkarzinom beschreibt sachlich, welche Aspekte für histologische und molekulare Angaben für die Therapieplanung relevant sind. Vor formaler Bewertung sollte die endgültige Referenzantwort mit exportierten Chunks und Seitenangaben präzisiert werden.",
+    "expected_answer_plain_language": "Einfach erklärt soll die Antwort verständlich zusammenfassen, was die Leitlinie zu histologische und molekulare Angaben für die Therapieplanung sagt. Die finale Formulierung sollte nach manueller Validierung vereinfacht werden.",
+    "expected_recommendation_metadata": null,
+    "gold_chunk_ids": [
+      "seed:lunge:factual:histologische_und_molekulare_angaben_für_die_therapieplanung"
+    ],
+    "gold_sections": [
+      "Pathologie",
+      "Molekulare Diagnostik"
+    ],
+    "gold_pages": [],
+    "required_citations": [
+      {
+        "chunk_id": "seed:lunge:factual:histologische_und_molekulare_angaben_für_die_therapieplanung",
+        "page_start": null,
+        "page_end": null,
+        "section_path": [
+          "Pathologie",
+          "Molekulare Diagnostik"
+        ],
+        "recommendation_id": null,
+        "citation_importance": "must"
+      }
+    ],
+    "expected_filters": {
+      "guideline_id": "lunge",
+      "recommendation_grade": null,
+      "chunk_type": "section"
+    },
+    "requires_comparison": false,
+    "needs_pubmed": false,
+    "requires_clarification": false,
+    "missing_clinical_dimensions": [],
+    "clarification_rationale": null,
+    "expected_clarification": null,
+    "claim_verdict": null,
+    "expected_answer_format": "explanatory",
+    "expected_answer_sections": [
+      "answer",
+      "citations",
+      "plain_language"
+    ],
+    "retrieval_challenge_types": [
+      "citation_localization"
+    ],
+    "should_refuse": false,
+    "should_redact_pii": false,
+    "expected_tools": [
+      "search_guidelines"
+    ],
+    "notes": "Bootstrap eval item generated automatically from documented evaluation coverage. Replace seed:* identifiers, pages, and answer wording after chunk export and manual review. No chunk export was available, so this item remains in bootstrap mode."
+  },
+  {
+    "id": "eval-014-factual",
+    "dataset_split": "eval",
+    "expected_behavior": "answer",
+    "question": "Wie unterscheidet die Prostatakarzinom-Leitlinie lokalisierte, lokal fortgeschrittene und metastasierte Situationen?",
+    "question_type": "factual",
+    "difficulty": "medium",
+    "guideline_scope": [
+      "prosta"
+    ],
+    "source_chunk_ids": [
+      "seed:prosta:factual:abgrenzung_lokalisiert_lokal_fortgeschritten_und_metastasiert"
+    ],
+    "expected_answer": "S3-Leitlinie Prostatakarzinom beschreibt sachlich, welche Aspekte für Abgrenzung lokalisiert, lokal fortgeschritten und metastasiert relevant sind. Vor formaler Bewertung sollte die endgültige Referenzantwort mit exportierten Chunks und Seitenangaben präzisiert werden.",
+    "expected_answer_plain_language": "Einfach erklärt soll die Antwort verständlich zusammenfassen, was die Leitlinie zu Abgrenzung lokalisiert, lokal fortgeschritten und metastasiert sagt. Die finale Formulierung sollte nach manueller Validierung vereinfacht werden.",
+    "expected_recommendation_metadata": null,
+    "gold_chunk_ids": [
+      "seed:prosta:factual:abgrenzung_lokalisiert_lokal_fortgeschritten_und_metastasiert"
+    ],
+    "gold_sections": [
+      "Klassifikation",
+      "Stadien"
+    ],
+    "gold_pages": [],
+    "required_citations": [
+      {
+        "chunk_id": "seed:prosta:factual:abgrenzung_lokalisiert_lokal_fortgeschritten_und_metastasiert",
+        "page_start": null,
+        "page_end": null,
+        "section_path": [
+          "Klassifikation",
+          "Stadien"
+        ],
+        "recommendation_id": null,
+        "citation_importance": "must"
+      }
+    ],
+    "expected_filters": {
+      "guideline_id": "prosta",
+      "recommendation_grade": null,
+      "chunk_type": "section"
+    },
+    "requires_comparison": false,
+    "needs_pubmed": false,
+    "requires_clarification": false,
+    "missing_clinical_dimensions": [],
+    "clarification_rationale": null,
+    "expected_clarification": null,
+    "claim_verdict": null,
+    "expected_answer_format": "explanatory",
+    "expected_answer_sections": [
+      "answer",
+      "citations",
+      "plain_language"
+    ],
+    "retrieval_challenge_types": [
+      "citation_localization"
+    ],
+    "should_refuse": false,
+    "should_redact_pii": false,
+    "expected_tools": [
+      "search_guidelines"
+    ],
+    "notes": "Bootstrap eval item generated automatically from documented evaluation coverage. Replace seed:* identifiers, pages, and answer wording after chunk export and manual review. No chunk export was available, so this item remains in bootstrap mode."
+  },
+  {
+    "id": "eval-015-factual",
+    "dataset_split": "eval",
+    "expected_behavior": "answer",
+    "question": "Welche Patientinnengruppen adressiert die Mammakarzinom-Leitlinie bei genetischer Beratung oder Testung?",
+    "question_type": "factual",
+    "difficulty": "medium",
+    "guideline_scope": [
+      "mamma"
+    ],
+    "source_chunk_ids": [
+      "seed:mamma:factual:patientinnengruppen_für_genetische_beratung"
+    ],
+    "expected_answer": "S3-Leitlinie Mammakarzinom beschreibt sachlich, welche Aspekte für Patientinnengruppen für genetische Beratung relevant sind. Vor formaler Bewertung sollte die endgültige Referenzantwort mit exportierten Chunks und Seitenangaben präzisiert werden.",
+    "expected_answer_plain_language": "Einfach erklärt soll die Antwort verständlich zusammenfassen, was die Leitlinie zu Patientinnengruppen für genetische Beratung sagt. Die finale Formulierung sollte nach manueller Validierung vereinfacht werden.",
+    "expected_recommendation_metadata": null,
+    "gold_chunk_ids": [
+      "seed:mamma:factual:patientinnengruppen_für_genetische_beratung"
+    ],
+    "gold_sections": [
+      "Genetik",
+      "Risikokonstellationen"
+    ],
+    "gold_pages": [],
+    "required_citations": [
+      {
+        "chunk_id": "seed:mamma:factual:patientinnengruppen_für_genetische_beratung",
+        "page_start": null,
+        "page_end": null,
+        "section_path": [
+          "Genetik",
+          "Risikokonstellationen"
+        ],
+        "recommendation_id": null,
+        "citation_importance": "must"
+      }
+    ],
+    "expected_filters": {
+      "guideline_id": "mamma",
+      "recommendation_grade": null,
+      "chunk_type": "section"
+    },
+    "requires_comparison": false,
+    "needs_pubmed": false,
+    "requires_clarification": false,
+    "missing_clinical_dimensions": [],
+    "clarification_rationale": null,
+    "expected_clarification": null,
+    "claim_verdict": null,
+    "expected_answer_format": "explanatory",
+    "expected_answer_sections": [
+      "answer",
+      "citations",
+      "plain_language"
+    ],
+    "retrieval_challenge_types": [
+      "citation_localization"
+    ],
+    "should_refuse": false,
+    "should_redact_pii": false,
+    "expected_tools": [
+      "search_guidelines"
+    ],
+    "notes": "Bootstrap eval item generated automatically from documented evaluation coverage. Replace seed:* identifiers, pages, and answer wording after chunk export and manual review. No chunk export was available, so this item remains in bootstrap mode."
+  },
+  {
+    "id": "eval-016-factual",
+    "dataset_split": "eval",
+    "expected_behavior": "answer",
+    "question": "Welche Ziele nennt die KRK-Leitlinie für die Nachsorge nach kurativer Therapie?",
+    "question_type": "factual",
+    "difficulty": "easy",
+    "guideline_scope": [
+      "krk"
+    ],
+    "source_chunk_ids": [
+      "seed:krk:factual:ziele_der_nachsorge"
+    ],
+    "expected_answer": "S3-Leitlinie Kolorektales Karzinom beschreibt sachlich, welche Aspekte für Ziele der Nachsorge relevant sind. Vor formaler Bewertung sollte die endgültige Referenzantwort mit exportierten Chunks und Seitenangaben präzisiert werden.",
+    "expected_answer_plain_language": "Einfach erklärt soll die Antwort verständlich zusammenfassen, was die Leitlinie zu Ziele der Nachsorge sagt. Die finale Formulierung sollte nach manueller Validierung vereinfacht werden.",
+    "expected_recommendation_metadata": null,
+    "gold_chunk_ids": [
+      "seed:krk:factual:ziele_der_nachsorge"
+    ],
+    "gold_sections": [
+      "Nachsorge",
+      "Ziele"
+    ],
+    "gold_pages": [],
+    "required_citations": [
+      {
+        "chunk_id": "seed:krk:factual:ziele_der_nachsorge",
+        "page_start": null,
+        "page_end": null,
+        "section_path": [
+          "Nachsorge",
+          "Ziele"
+        ],
+        "recommendation_id": null,
+        "citation_importance": "must"
+      }
+    ],
+    "expected_filters": {
+      "guideline_id": "krk",
+      "recommendation_grade": null,
+      "chunk_type": "section"
+    },
+    "requires_comparison": false,
+    "needs_pubmed": false,
+    "requires_clarification": false,
+    "missing_clinical_dimensions": [],
+    "clarification_rationale": null,
+    "expected_clarification": null,
+    "claim_verdict": null,
+    "expected_answer_format": "explanatory",
+    "expected_answer_sections": [
+      "answer",
+      "citations",
+      "plain_language"
+    ],
+    "retrieval_challenge_types": [
+      "citation_localization"
+    ],
+    "should_refuse": false,
+    "should_redact_pii": false,
+    "expected_tools": [
+      "search_guidelines"
+    ],
+    "notes": "Bootstrap eval item generated automatically from documented evaluation coverage. Replace seed:* identifiers, pages, and answer wording after chunk export and manual review. No chunk export was available, so this item remains in bootstrap mode."
+  },
+  {
+    "id": "eval-017-evidence",
+    "dataset_split": "eval",
+    "expected_behavior": "answer",
+    "question": "Welche Begründung oder Evidenz nennt die Mammakarzinom-Leitlinie für neoadjuvante Therapieentscheidungen?",
+    "question_type": "evidence",
+    "difficulty": "hard",
+    "guideline_scope": [
+      "mamma"
+    ],
+    "source_chunk_ids": [
+      "seed:mamma:evidence:begründung_für_neoadjuvante_therapieentscheidungen"
+    ],
+    "expected_answer": "S3-Leitlinie Mammakarzinom erläutert die Begründung bzw. Evidenz hinter Begründung für neoadjuvante Therapieentscheidungen. Für spätere Faithfulness- und Correctness-Messungen sollte diese Referenzantwort nach dem Chunk-Export manuell verfeinert werden.",
+    "expected_answer_plain_language": "Einfach erklärt soll die Antwort verständlich zusammenfassen, was die Leitlinie zu Begründung für neoadjuvante Therapieentscheidungen sagt. Die finale Formulierung sollte nach manueller Validierung vereinfacht werden.",
+    "expected_recommendation_metadata": null,
+    "gold_chunk_ids": [
+      "seed:mamma:evidence:begründung_für_neoadjuvante_therapieentscheidungen"
+    ],
+    "gold_sections": [
+      "Neoadjuvante Therapie",
+      "Rationale"
+    ],
+    "gold_pages": [],
+    "required_citations": [
+      {
+        "chunk_id": "seed:mamma:evidence:begründung_für_neoadjuvante_therapieentscheidungen",
+        "page_start": null,
+        "page_end": null,
+        "section_path": [
+          "Neoadjuvante Therapie",
+          "Rationale"
+        ],
+        "recommendation_id": null,
+        "citation_importance": "must"
+      }
+    ],
+    "expected_filters": {
+      "guideline_id": "mamma",
+      "recommendation_grade": null,
+      "chunk_type": "section"
+    },
+    "requires_comparison": false,
+    "needs_pubmed": false,
+    "requires_clarification": false,
+    "missing_clinical_dimensions": [],
+    "clarification_rationale": null,
+    "expected_clarification": null,
+    "claim_verdict": null,
+    "expected_answer_format": "explanatory",
+    "expected_answer_sections": [
+      "evidence",
+      "citations",
+      "plain_language"
+    ],
+    "retrieval_challenge_types": [
+      "long_context_synthesis",
+      "citation_localization"
+    ],
+    "should_refuse": false,
+    "should_redact_pii": false,
+    "expected_tools": [
+      "search_guidelines"
+    ],
+    "notes": "Bootstrap eval item generated automatically from documented evaluation coverage. Replace seed:* identifiers, pages, and answer wording after chunk export and manual review. No chunk export was available, so this item remains in bootstrap mode."
+  },
+  {
+    "id": "eval-018-evidence",
+    "dataset_split": "eval",
+    "expected_behavior": "answer",
+    "question": "Warum ist die Bestimmung des Mismatch-Repair-Status laut KRK-Leitlinie relevant?",
+    "question_type": "evidence",
+    "difficulty": "medium",
+    "guideline_scope": [
+      "krk"
+    ],
+    "source_chunk_ids": [
+      "seed:krk:evidence:relevanz_des_mismatch_repair_status"
+    ],
+    "expected_answer": "S3-Leitlinie Kolorektales Karzinom erläutert die Begründung bzw. Evidenz hinter Relevanz des Mismatch-Repair-Status. Für spätere Faithfulness- und Correctness-Messungen sollte diese Referenzantwort nach dem Chunk-Export manuell verfeinert werden.",
+    "expected_answer_plain_language": "Einfach erklärt soll die Antwort verständlich zusammenfassen, was die Leitlinie zu Relevanz des Mismatch-Repair-Status sagt. Die finale Formulierung sollte nach manueller Validierung vereinfacht werden.",
+    "expected_recommendation_metadata": null,
+    "gold_chunk_ids": [
+      "seed:krk:evidence:relevanz_des_mismatch_repair_status"
+    ],
+    "gold_sections": [
+      "Molekulare Diagnostik",
+      "Rationale"
+    ],
+    "gold_pages": [],
+    "required_citations": [
+      {
+        "chunk_id": "seed:krk:evidence:relevanz_des_mismatch_repair_status",
+        "page_start": null,
+        "page_end": null,
+        "section_path": [
+          "Molekulare Diagnostik",
+          "Rationale"
+        ],
+        "recommendation_id": null,
+        "citation_importance": "must"
+      }
+    ],
+    "expected_filters": {
+      "guideline_id": "krk",
+      "recommendation_grade": null,
+      "chunk_type": "section"
+    },
+    "requires_comparison": false,
+    "needs_pubmed": false,
+    "requires_clarification": false,
+    "missing_clinical_dimensions": [],
+    "clarification_rationale": null,
+    "expected_clarification": null,
+    "claim_verdict": null,
+    "expected_answer_format": "explanatory",
+    "expected_answer_sections": [
+      "evidence",
+      "citations",
+      "plain_language"
+    ],
+    "retrieval_challenge_types": [
+      "long_context_synthesis",
+      "citation_localization"
+    ],
+    "should_refuse": false,
+    "should_redact_pii": false,
+    "expected_tools": [
+      "search_guidelines"
+    ],
+    "notes": "Bootstrap eval item generated automatically from documented evaluation coverage. Replace seed:* identifiers, pages, and answer wording after chunk export and manual review. No chunk export was available, so this item remains in bootstrap mode."
+  },
+  {
+    "id": "eval-019-evidence",
+    "dataset_split": "eval",
+    "expected_behavior": "answer",
+    "question": "Warum betont die Lungenkarzinom-Leitlinie eine umfassende molekulare Diagnostik vor Systemtherapie?",
+    "question_type": "evidence",
+    "difficulty": "medium",
+    "guideline_scope": [
+      "lunge"
+    ],
+    "source_chunk_ids": [
+      "seed:lunge:evidence:begründung_für_umfassende_molekulare_diagnostik"
+    ],
+    "expected_answer": "S3-Leitlinie Lungenkarzinom erläutert die Begründung bzw. Evidenz hinter Begründung für umfassende molekulare Diagnostik. Für spätere Faithfulness- und Correctness-Messungen sollte diese Referenzantwort nach dem Chunk-Export manuell verfeinert werden.",
+    "expected_answer_plain_language": "Einfach erklärt soll die Antwort verständlich zusammenfassen, was die Leitlinie zu Begründung für umfassende molekulare Diagnostik sagt. Die finale Formulierung sollte nach manueller Validierung vereinfacht werden.",
+    "expected_recommendation_metadata": null,
+    "gold_chunk_ids": [
+      "seed:lunge:evidence:begründung_für_umfassende_molekulare_diagnostik"
+    ],
+    "gold_sections": [
+      "Molekulare Diagnostik",
+      "Systemtherapie"
+    ],
+    "gold_pages": [],
+    "required_citations": [
+      {
+        "chunk_id": "seed:lunge:evidence:begründung_für_umfassende_molekulare_diagnostik",
+        "page_start": null,
+        "page_end": null,
+        "section_path": [
+          "Molekulare Diagnostik",
+          "Systemtherapie"
+        ],
+        "recommendation_id": null,
+        "citation_importance": "must"
+      }
+    ],
+    "expected_filters": {
+      "guideline_id": "lunge",
+      "recommendation_grade": null,
+      "chunk_type": "section"
+    },
+    "requires_comparison": false,
+    "needs_pubmed": false,
+    "requires_clarification": false,
+    "missing_clinical_dimensions": [],
+    "clarification_rationale": null,
+    "expected_clarification": null,
+    "claim_verdict": null,
+    "expected_answer_format": "explanatory",
+    "expected_answer_sections": [
+      "evidence",
+      "citations",
+      "plain_language"
+    ],
+    "retrieval_challenge_types": [
+      "long_context_synthesis",
+      "citation_localization"
+    ],
+    "should_refuse": false,
+    "should_redact_pii": false,
+    "expected_tools": [
+      "search_guidelines"
+    ],
+    "notes": "Bootstrap eval item generated automatically from documented evaluation coverage. Replace seed:* identifiers, pages, and answer wording after chunk export and manual review. No chunk export was available, so this item remains in bootstrap mode."
+  },
+  {
+    "id": "eval-020-evidence",
+    "dataset_split": "eval",
+    "expected_behavior": "answer",
+    "question": "Welche Begründung gibt die Prostatakarzinom-Leitlinie für mpMRT vor Biopsie oder Therapieplanung?",
+    "question_type": "evidence",
+    "difficulty": "medium",
+    "guideline_scope": [
+      "prosta"
+    ],
+    "source_chunk_ids": [
+      "seed:prosta:evidence:begründung_für_mpmrt_vor_biopsie_oder_therapieplanung"
+    ],
+    "expected_answer": "S3-Leitlinie Prostatakarzinom erläutert die Begründung bzw. Evidenz hinter Begründung für mpMRT vor Biopsie oder Therapieplanung. Für spätere Faithfulness- und Correctness-Messungen sollte diese Referenzantwort nach dem Chunk-Export manuell verfeinert werden.",
+    "expected_answer_plain_language": "Einfach erklärt soll die Antwort verständlich zusammenfassen, was die Leitlinie zu Begründung für mpMRT vor Biopsie oder Therapieplanung sagt. Die finale Formulierung sollte nach manueller Validierung vereinfacht werden.",
+    "expected_recommendation_metadata": null,
+    "gold_chunk_ids": [
+      "seed:prosta:evidence:begründung_für_mpmrt_vor_biopsie_oder_therapieplanung"
+    ],
+    "gold_sections": [
+      "Bildgebung",
+      "mpMRT"
+    ],
+    "gold_pages": [],
+    "required_citations": [
+      {
+        "chunk_id": "seed:prosta:evidence:begründung_für_mpmrt_vor_biopsie_oder_therapieplanung",
+        "page_start": null,
+        "page_end": null,
+        "section_path": [
+          "Bildgebung",
+          "mpMRT"
+        ],
+        "recommendation_id": null,
+        "citation_importance": "must"
+      }
+    ],
+    "expected_filters": {
+      "guideline_id": "prosta",
+      "recommendation_grade": null,
+      "chunk_type": "section"
+    },
+    "requires_comparison": false,
+    "needs_pubmed": false,
+    "requires_clarification": false,
+    "missing_clinical_dimensions": [],
+    "clarification_rationale": null,
+    "expected_clarification": null,
+    "claim_verdict": null,
+    "expected_answer_format": "explanatory",
+    "expected_answer_sections": [
+      "evidence",
+      "citations",
+      "plain_language"
+    ],
+    "retrieval_challenge_types": [
+      "long_context_synthesis",
+      "citation_localization"
+    ],
+    "should_refuse": false,
+    "should_redact_pii": false,
+    "expected_tools": [
+      "search_guidelines"
+    ],
+    "notes": "Bootstrap eval item generated automatically from documented evaluation coverage. Replace seed:* identifiers, pages, and answer wording after chunk export and manual review. No chunk export was available, so this item remains in bootstrap mode."
+  },
+  {
+    "id": "eval-021-evidence",
+    "dataset_split": "eval",
+    "expected_behavior": "answer",
+    "question": "Welche Evidenz oder welches Ziel nennt die Mammakarzinom-Leitlinie für psychoonkologische Unterstützung?",
+    "question_type": "evidence",
+    "difficulty": "easy",
+    "guideline_scope": [
+      "mamma"
+    ],
+    "source_chunk_ids": [
+      "seed:mamma:evidence:ziel_psychoonkologischer_unterstützung"
+    ],
+    "expected_answer": "S3-Leitlinie Mammakarzinom erläutert die Begründung bzw. Evidenz hinter Ziel psychoonkologischer Unterstützung. Für spätere Faithfulness- und Correctness-Messungen sollte diese Referenzantwort nach dem Chunk-Export manuell verfeinert werden.",
+    "expected_answer_plain_language": "Einfach erklärt soll die Antwort verständlich zusammenfassen, was die Leitlinie zu Ziel psychoonkologischer Unterstützung sagt. Die finale Formulierung sollte nach manueller Validierung vereinfacht werden.",
+    "expected_recommendation_metadata": null,
+    "gold_chunk_ids": [
+      "seed:mamma:evidence:ziel_psychoonkologischer_unterstützung"
+    ],
+    "gold_sections": [
+      "Psychoonkologie",
+      "Supportive Therapie"
+    ],
+    "gold_pages": [],
+    "required_citations": [
+      {
+        "chunk_id": "seed:mamma:evidence:ziel_psychoonkologischer_unterstützung",
+        "page_start": null,
+        "page_end": null,
+        "section_path": [
+          "Psychoonkologie",
+          "Supportive Therapie"
+        ],
+        "recommendation_id": null,
+        "citation_importance": "must"
+      }
+    ],
+    "expected_filters": {
+      "guideline_id": "mamma",
+      "recommendation_grade": null,
+      "chunk_type": "section"
+    },
+    "requires_comparison": false,
+    "needs_pubmed": false,
+    "requires_clarification": false,
+    "missing_clinical_dimensions": [],
+    "clarification_rationale": null,
+    "expected_clarification": null,
+    "claim_verdict": null,
+    "expected_answer_format": "explanatory",
+    "expected_answer_sections": [
+      "evidence",
+      "citations",
+      "plain_language"
+    ],
+    "retrieval_challenge_types": [
+      "long_context_synthesis",
+      "citation_localization"
+    ],
+    "should_refuse": false,
+    "should_redact_pii": false,
+    "expected_tools": [
+      "search_guidelines"
+    ],
+    "notes": "Bootstrap eval item generated automatically from documented evaluation coverage. Replace seed:* identifiers, pages, and answer wording after chunk export and manual review. No chunk export was available, so this item remains in bootstrap mode."
+  },
+  {
+    "id": "eval-022-comparison",
+    "dataset_split": "eval",
+    "expected_behavior": "answer",
+    "question": "Wie unterscheiden sich Mammakarzinom- und Prostatakarzinom-Leitlinie bei der Rolle gemeinsamer Entscheidungsfindung?",
+    "question_type": "comparison",
+    "difficulty": "hard",
+    "guideline_scope": [
+      "mamma",
+      "prosta"
+    ],
+    "source_chunk_ids": [
+      "seed:mamma_prosta:comparison:rolle_gemeinsamer_entscheidungsfindung"
+    ],
+    "expected_answer": "Die Leitlinien im Scope sollen für Rolle gemeinsamer Entscheidungsfindung systematisch gegenübergestellt werden. Die finale Referenzantwort sollte Gemeinsamkeiten, Unterschiede und die zugehörigen Evidenzstellen je Leitlinie enthalten.",
+    "expected_answer_plain_language": "Einfach erklärt soll die Antwort zeigen, worin sich die Leitlinien bei Rolle gemeinsamer Entscheidungsfindung unterscheiden und worin sie ähnlich sind.",
+    "expected_recommendation_metadata": null,
+    "gold_chunk_ids": [
+      "seed:mamma_prosta:comparison:rolle_gemeinsamer_entscheidungsfindung"
+    ],
+    "gold_sections": [
+      "Shared Decision Making",
+      "Aufklärung"
+    ],
+    "gold_pages": [],
+    "required_citations": [
+      {
+        "chunk_id": "seed:mamma_prosta:comparison:rolle_gemeinsamer_entscheidungsfindung",
+        "page_start": null,
+        "page_end": null,
+        "section_path": [
+          "Shared Decision Making",
+          "Aufklärung"
+        ],
+        "recommendation_id": null,
+        "citation_importance": "must"
+      }
+    ],
+    "expected_filters": {
+      "guideline_id": null,
+      "recommendation_grade": null,
+      "chunk_type": "section"
+    },
+    "requires_comparison": true,
+    "needs_pubmed": false,
+    "requires_clarification": false,
+    "missing_clinical_dimensions": [],
+    "clarification_rationale": null,
+    "expected_clarification": null,
+    "claim_verdict": null,
+    "expected_answer_format": "comparative",
+    "expected_answer_sections": [
+      "comparison",
+      "citations",
+      "plain_language"
+    ],
+    "retrieval_challenge_types": [
+      "cross_section_aggregation",
+      "long_context_synthesis"
+    ],
+    "should_refuse": false,
+    "should_redact_pii": false,
+    "expected_tools": [
+      "compare_guidelines",
+      "search_guidelines"
+    ],
+    "notes": "Bootstrap eval item generated automatically from documented evaluation coverage. Replace seed:* identifiers, pages, and answer wording after chunk export and manual review. No chunk export was available, so this item remains in bootstrap mode."
+  },
+  {
+    "id": "eval-023-comparison",
+    "dataset_split": "eval",
+    "expected_behavior": "answer",
+    "question": "Wie unterscheiden sich KRK- und Lungenkarzinom-Leitlinie beim Staging vor Therapiebeginn?",
+    "question_type": "comparison",
+    "difficulty": "hard",
+    "guideline_scope": [
+      "krk",
+      "lunge"
+    ],
+    "source_chunk_ids": [
+      "seed:krk_lunge:comparison:staging_vor_therapiebeginn"
+    ],
+    "expected_answer": "Die Leitlinien im Scope sollen für Staging vor Therapiebeginn systematisch gegenübergestellt werden. Die finale Referenzantwort sollte Gemeinsamkeiten, Unterschiede und die zugehörigen Evidenzstellen je Leitlinie enthalten.",
+    "expected_answer_plain_language": "Einfach erklärt soll die Antwort zeigen, worin sich die Leitlinien bei Staging vor Therapiebeginn unterscheiden und worin sie ähnlich sind.",
+    "expected_recommendation_metadata": null,
+    "gold_chunk_ids": [
+      "seed:krk_lunge:comparison:staging_vor_therapiebeginn"
+    ],
+    "gold_sections": [
+      "Staging",
+      "Diagnostik"
+    ],
+    "gold_pages": [],
+    "required_citations": [
+      {
+        "chunk_id": "seed:krk_lunge:comparison:staging_vor_therapiebeginn",
+        "page_start": null,
+        "page_end": null,
+        "section_path": [
+          "Staging",
+          "Diagnostik"
+        ],
+        "recommendation_id": null,
+        "citation_importance": "must"
+      }
+    ],
+    "expected_filters": {
+      "guideline_id": null,
+      "recommendation_grade": null,
+      "chunk_type": "section"
+    },
+    "requires_comparison": true,
+    "needs_pubmed": false,
+    "requires_clarification": false,
+    "missing_clinical_dimensions": [],
+    "clarification_rationale": null,
+    "expected_clarification": null,
+    "claim_verdict": null,
+    "expected_answer_format": "comparative",
+    "expected_answer_sections": [
+      "comparison",
+      "citations",
+      "plain_language"
+    ],
+    "retrieval_challenge_types": [
+      "cross_section_aggregation",
+      "long_context_synthesis"
+    ],
+    "should_refuse": false,
+    "should_redact_pii": false,
+    "expected_tools": [
+      "compare_guidelines",
+      "search_guidelines"
+    ],
+    "notes": "Bootstrap eval item generated automatically from documented evaluation coverage. Replace seed:* identifiers, pages, and answer wording after chunk export and manual review. No chunk export was available, so this item remains in bootstrap mode."
+  },
+  {
+    "id": "eval-024-comparison",
+    "dataset_split": "eval",
+    "expected_behavior": "answer",
+    "question": "Wie unterscheiden sich Mammakarzinom- und KRK-Leitlinie bei Nachsorge und Verlaufskontrollen?",
+    "question_type": "comparison",
+    "difficulty": "medium",
+    "guideline_scope": [
+      "mamma",
+      "krk"
+    ],
+    "source_chunk_ids": [
+      "seed:mamma_krk:comparison:nachsorge_und_verlaufskontrollen"
+    ],
+    "expected_answer": "Die Leitlinien im Scope sollen für Nachsorge und Verlaufskontrollen systematisch gegenübergestellt werden. Die finale Referenzantwort sollte Gemeinsamkeiten, Unterschiede und die zugehörigen Evidenzstellen je Leitlinie enthalten.",
+    "expected_answer_plain_language": "Einfach erklärt soll die Antwort zeigen, worin sich die Leitlinien bei Nachsorge und Verlaufskontrollen unterscheiden und worin sie ähnlich sind.",
+    "expected_recommendation_metadata": null,
+    "gold_chunk_ids": [
+      "seed:mamma_krk:comparison:nachsorge_und_verlaufskontrollen"
+    ],
+    "gold_sections": [
+      "Nachsorge",
+      "Kontrollen"
+    ],
+    "gold_pages": [],
+    "required_citations": [
+      {
+        "chunk_id": "seed:mamma_krk:comparison:nachsorge_und_verlaufskontrollen",
+        "page_start": null,
+        "page_end": null,
+        "section_path": [
+          "Nachsorge",
+          "Kontrollen"
+        ],
+        "recommendation_id": null,
+        "citation_importance": "must"
+      }
+    ],
+    "expected_filters": {
+      "guideline_id": null,
+      "recommendation_grade": null,
+      "chunk_type": "section"
+    },
+    "requires_comparison": true,
+    "needs_pubmed": false,
+    "requires_clarification": false,
+    "missing_clinical_dimensions": [],
+    "clarification_rationale": null,
+    "expected_clarification": null,
+    "claim_verdict": null,
+    "expected_answer_format": "comparative",
+    "expected_answer_sections": [
+      "comparison",
+      "citations",
+      "plain_language"
+    ],
+    "retrieval_challenge_types": [
+      "cross_section_aggregation",
+      "long_context_synthesis"
+    ],
+    "should_refuse": false,
+    "should_redact_pii": false,
+    "expected_tools": [
+      "compare_guidelines",
+      "search_guidelines"
+    ],
+    "notes": "Bootstrap eval item generated automatically from documented evaluation coverage. Replace seed:* identifiers, pages, and answer wording after chunk export and manual review. No chunk export was available, so this item remains in bootstrap mode."
+  },
+  {
+    "id": "eval-025-comparison",
+    "dataset_split": "eval",
+    "expected_behavior": "answer",
+    "question": "Wie unterscheiden sich Lungen- und Prostatakarzinom-Leitlinie bei der Nutzung bildgebender Diagnostik?",
+    "question_type": "comparison",
+    "difficulty": "medium",
+    "guideline_scope": [
+      "lunge",
+      "prosta"
+    ],
+    "source_chunk_ids": [
+      "seed:lunge_prosta:comparison:nutzung_bildgebender_diagnostik"
+    ],
+    "expected_answer": "Die Leitlinien im Scope sollen für Nutzung bildgebender Diagnostik systematisch gegenübergestellt werden. Die finale Referenzantwort sollte Gemeinsamkeiten, Unterschiede und die zugehörigen Evidenzstellen je Leitlinie enthalten.",
+    "expected_answer_plain_language": "Einfach erklärt soll die Antwort zeigen, worin sich die Leitlinien bei Nutzung bildgebender Diagnostik unterscheiden und worin sie ähnlich sind.",
+    "expected_recommendation_metadata": null,
+    "gold_chunk_ids": [
+      "seed:lunge_prosta:comparison:nutzung_bildgebender_diagnostik"
+    ],
+    "gold_sections": [
+      "Bildgebung",
+      "Staging"
+    ],
+    "gold_pages": [],
+    "required_citations": [
+      {
+        "chunk_id": "seed:lunge_prosta:comparison:nutzung_bildgebender_diagnostik",
+        "page_start": null,
+        "page_end": null,
+        "section_path": [
+          "Bildgebung",
+          "Staging"
+        ],
+        "recommendation_id": null,
+        "citation_importance": "must"
+      }
+    ],
+    "expected_filters": {
+      "guideline_id": null,
+      "recommendation_grade": null,
+      "chunk_type": "section"
+    },
+    "requires_comparison": true,
+    "needs_pubmed": false,
+    "requires_clarification": false,
+    "missing_clinical_dimensions": [],
+    "clarification_rationale": null,
+    "expected_clarification": null,
+    "claim_verdict": null,
+    "expected_answer_format": "comparative",
+    "expected_answer_sections": [
+      "comparison",
+      "citations",
+      "plain_language"
+    ],
+    "retrieval_challenge_types": [
+      "cross_section_aggregation",
+      "long_context_synthesis"
+    ],
+    "should_refuse": false,
+    "should_redact_pii": false,
+    "expected_tools": [
+      "compare_guidelines",
+      "search_guidelines"
+    ],
+    "notes": "Bootstrap eval item generated automatically from documented evaluation coverage. Replace seed:* identifiers, pages, and answer wording after chunk export and manual review. No chunk export was available, so this item remains in bootstrap mode."
+  },
+  {
+    "id": "eval-026-drug-lookup",
+    "dataset_split": "eval",
+    "expected_behavior": "answer",
+    "question": "In welchen Situationen wird Oxaliplatin in den onkologischen Leitlinien erwähnt?",
+    "question_type": "drug_lookup",
+    "difficulty": "easy",
+    "guideline_scope": [
+      "krk"
+    ],
+    "source_chunk_ids": [
+      "seed:krk:drug-lookup:oxaliplatin"
+    ],
+    "expected_answer": "Die Evaluation soll erfassen, in welchen Leitlinien und klinischen Kontexten Oxaliplatin vorkommt. Die finale Referenzantwort sollte Nennungen, Indikationen und ggf. Empfehlungsgrade strukturiert zusammenführen.",
+    "expected_answer_plain_language": "Einfach erklärt soll die Antwort zeigen, in welchen Behandlungssituationen Oxaliplatin in den Leitlinien vorkommt.",
+    "expected_recommendation_metadata": null,
+    "gold_chunk_ids": [
+      "seed:krk:drug-lookup:oxaliplatin"
+    ],
+    "gold_sections": [
+      "Systemtherapie",
+      "Chemotherapie"
+    ],
+    "gold_pages": [],
+    "required_citations": [
+      {
+        "chunk_id": "seed:krk:drug-lookup:oxaliplatin",
+        "page_start": null,
+        "page_end": null,
+        "section_path": [
+          "Systemtherapie",
+          "Chemotherapie"
+        ],
+        "recommendation_id": null,
+        "citation_importance": "must"
+      }
+    ],
+    "expected_filters": {
+      "guideline_id": null,
+      "recommendation_grade": null,
+      "chunk_type": null
+    },
+    "requires_comparison": false,
+    "needs_pubmed": false,
+    "requires_clarification": false,
+    "missing_clinical_dimensions": [],
+    "clarification_rationale": null,
+    "expected_clarification": null,
+    "claim_verdict": null,
+    "expected_answer_format": "structured",
+    "expected_answer_sections": [
+      "answer",
+      "citations",
+      "plain_language"
+    ],
+    "retrieval_challenge_types": [
+      "lexical_mismatch",
+      "synonym_expansion"
+    ],
+    "should_refuse": false,
+    "should_redact_pii": false,
+    "expected_tools": [
+      "drug_class_lookup",
+      "search_guidelines"
+    ],
+    "notes": "Bootstrap eval item generated automatically from documented evaluation coverage. Replace seed:* identifiers, pages, and answer wording after chunk export and manual review. No chunk export was available, so this item remains in bootstrap mode."
+  },
+  {
+    "id": "eval-027-drug-lookup",
+    "dataset_split": "eval",
+    "expected_behavior": "answer",
+    "question": "In welchen Situationen wird Docetaxel in den onkologischen Leitlinien genannt?",
+    "question_type": "drug_lookup",
+    "difficulty": "medium",
+    "guideline_scope": [
+      "mamma",
+      "lunge",
+      "prosta"
+    ],
+    "source_chunk_ids": [
+      "seed:mamma_lunge_prosta:drug-lookup:docetaxel"
+    ],
+    "expected_answer": "Die Evaluation soll erfassen, in welchen Leitlinien und klinischen Kontexten Docetaxel vorkommt. Die finale Referenzantwort sollte Nennungen, Indikationen und ggf. Empfehlungsgrade strukturiert zusammenführen.",
+    "expected_answer_plain_language": "Einfach erklärt soll die Antwort zeigen, in welchen Behandlungssituationen Docetaxel in den Leitlinien vorkommt.",
+    "expected_recommendation_metadata": null,
+    "gold_chunk_ids": [
+      "seed:mamma_lunge_prosta:drug-lookup:docetaxel"
+    ],
+    "gold_sections": [
+      "Systemtherapie",
+      "Medikamentöse Therapie"
+    ],
+    "gold_pages": [],
+    "required_citations": [
+      {
+        "chunk_id": "seed:mamma_lunge_prosta:drug-lookup:docetaxel",
+        "page_start": null,
+        "page_end": null,
+        "section_path": [
+          "Systemtherapie",
+          "Medikamentöse Therapie"
+        ],
+        "recommendation_id": null,
+        "citation_importance": "must"
+      }
+    ],
+    "expected_filters": {
+      "guideline_id": null,
+      "recommendation_grade": null,
+      "chunk_type": null
+    },
+    "requires_comparison": false,
+    "needs_pubmed": false,
+    "requires_clarification": false,
+    "missing_clinical_dimensions": [],
+    "clarification_rationale": null,
+    "expected_clarification": null,
+    "claim_verdict": null,
+    "expected_answer_format": "structured",
+    "expected_answer_sections": [
+      "answer",
+      "citations",
+      "plain_language"
+    ],
+    "retrieval_challenge_types": [
+      "lexical_mismatch",
+      "synonym_expansion"
+    ],
+    "should_refuse": false,
+    "should_redact_pii": false,
+    "expected_tools": [
+      "drug_class_lookup",
+      "search_guidelines"
+    ],
+    "notes": "Bootstrap eval item generated automatically from documented evaluation coverage. Replace seed:* identifiers, pages, and answer wording after chunk export and manual review. No chunk export was available, so this item remains in bootstrap mode."
+  },
+  {
+    "id": "eval-028-drug-lookup",
+    "dataset_split": "eval",
+    "expected_behavior": "answer",
+    "question": "Welche Aussagen machen die Leitlinien zu Pembrolizumab?",
+    "question_type": "drug_lookup",
+    "difficulty": "medium",
+    "guideline_scope": [
+      "mamma",
+      "lunge"
+    ],
+    "source_chunk_ids": [
+      "seed:mamma_lunge:drug-lookup:pembrolizumab"
+    ],
+    "expected_answer": "Die Evaluation soll erfassen, in welchen Leitlinien und klinischen Kontexten Pembrolizumab vorkommt. Die finale Referenzantwort sollte Nennungen, Indikationen und ggf. Empfehlungsgrade strukturiert zusammenführen.",
+    "expected_answer_plain_language": "Einfach erklärt soll die Antwort zeigen, in welchen Behandlungssituationen Pembrolizumab in den Leitlinien vorkommt.",
+    "expected_recommendation_metadata": null,
+    "gold_chunk_ids": [
+      "seed:mamma_lunge:drug-lookup:pembrolizumab"
+    ],
+    "gold_sections": [
+      "Immuntherapie",
+      "Systemtherapie"
+    ],
+    "gold_pages": [],
+    "required_citations": [
+      {
+        "chunk_id": "seed:mamma_lunge:drug-lookup:pembrolizumab",
+        "page_start": null,
+        "page_end": null,
+        "section_path": [
+          "Immuntherapie",
+          "Systemtherapie"
+        ],
+        "recommendation_id": null,
+        "citation_importance": "must"
+      }
+    ],
+    "expected_filters": {
+      "guideline_id": null,
+      "recommendation_grade": null,
+      "chunk_type": null
+    },
+    "requires_comparison": false,
+    "needs_pubmed": false,
+    "requires_clarification": false,
+    "missing_clinical_dimensions": [],
+    "clarification_rationale": null,
+    "expected_clarification": null,
+    "claim_verdict": null,
+    "expected_answer_format": "structured",
+    "expected_answer_sections": [
+      "answer",
+      "citations",
+      "plain_language"
+    ],
+    "retrieval_challenge_types": [
+      "lexical_mismatch",
+      "synonym_expansion"
+    ],
+    "should_refuse": false,
+    "should_redact_pii": false,
+    "expected_tools": [
+      "drug_class_lookup",
+      "search_guidelines"
+    ],
+    "notes": "Bootstrap eval item generated automatically from documented evaluation coverage. Replace seed:* identifiers, pages, and answer wording after chunk export and manual review. No chunk export was available, so this item remains in bootstrap mode."
+  },
+  {
+    "id": "eval-029-external",
+    "dataset_split": "eval",
+    "expected_behavior": "answer",
+    "question": "Welche aktuellen Studien außerhalb der Leitlinien gibt es zu ctDNA in der Nachsorge beim kolorektalen Karzinom?",
+    "question_type": "external",
+    "difficulty": "hard",
+    "guideline_scope": [
+      "krk"
+    ],
+    "source_chunk_ids": [
+      "seed:krk:external:ctdna_in_der_nachsorge"
+    ],
+    "expected_answer": "Die erwartete Antwort sollte die einschlägige Leitlinienbasis kurz einordnen und zusätzlich neue externe Literatur zu ctDNA in der Nachsorge über PubMed transparent kennzeichnen.",
+    "expected_answer_plain_language": "Einfach erklärt soll die Antwort zusammenfassen, was die Leitlinie bereits sagt und welche neueren externen Studien zu ctDNA in der Nachsorge zusätzlich relevant sind.",
+    "expected_recommendation_metadata": null,
+    "gold_chunk_ids": [
+      "seed:krk:external:ctdna_in_der_nachsorge"
+    ],
+    "gold_sections": [
+      "Nachsorge",
+      "Biomarker"
+    ],
+    "gold_pages": [],
+    "required_citations": [
+      {
+        "chunk_id": "seed:krk:external:ctdna_in_der_nachsorge",
+        "page_start": null,
+        "page_end": null,
+        "section_path": [
+          "Nachsorge",
+          "Biomarker"
+        ],
+        "recommendation_id": null,
+        "citation_importance": "must"
+      }
+    ],
+    "expected_filters": {
+      "guideline_id": "krk",
+      "recommendation_grade": null,
+      "chunk_type": "section"
+    },
+    "requires_comparison": false,
+    "needs_pubmed": true,
+    "requires_clarification": false,
+    "missing_clinical_dimensions": [],
+    "clarification_rationale": null,
+    "expected_clarification": null,
+    "claim_verdict": null,
+    "expected_answer_format": "structured",
+    "expected_answer_sections": [
+      "answer",
+      "citations",
+      "plain_language"
+    ],
+    "retrieval_challenge_types": [
+      "synonym_expansion",
+      "long_context_synthesis"
+    ],
+    "should_refuse": false,
+    "should_redact_pii": false,
+    "expected_tools": [
+      "pubmed_search",
+      "search_guidelines"
+    ],
+    "notes": "Bootstrap eval item generated automatically from documented evaluation coverage. Replace seed:* identifiers, pages, and answer wording after chunk export and manual review. No chunk export was available, so this item remains in bootstrap mode."
+  },
+  {
+    "id": "eval-030-external",
+    "dataset_split": "eval",
+    "expected_behavior": "answer",
+    "question": "Welche neueren Publikationen außerhalb der Leitlinien gibt es zu PARP-Inhibitoren beim Prostatakarzinom?",
+    "question_type": "external",
+    "difficulty": "hard",
+    "guideline_scope": [
+      "prosta"
+    ],
+    "source_chunk_ids": [
+      "seed:prosta:external:parp_inhibitoren_beim_prostatakarzinom"
+    ],
+    "expected_answer": "Die erwartete Antwort sollte die einschlägige Leitlinienbasis kurz einordnen und zusätzlich neue externe Literatur zu PARP-Inhibitoren beim Prostatakarzinom über PubMed transparent kennzeichnen.",
+    "expected_answer_plain_language": "Einfach erklärt soll die Antwort zusammenfassen, was die Leitlinie bereits sagt und welche neueren externen Studien zu PARP-Inhibitoren beim Prostatakarzinom zusätzlich relevant sind.",
+    "expected_recommendation_metadata": null,
+    "gold_chunk_ids": [
+      "seed:prosta:external:parp_inhibitoren_beim_prostatakarzinom"
+    ],
+    "gold_sections": [
+      "Systemtherapie",
+      "Targeted Therapy"
+    ],
+    "gold_pages": [],
+    "required_citations": [
+      {
+        "chunk_id": "seed:prosta:external:parp_inhibitoren_beim_prostatakarzinom",
+        "page_start": null,
+        "page_end": null,
+        "section_path": [
+          "Systemtherapie",
+          "Targeted Therapy"
+        ],
+        "recommendation_id": null,
+        "citation_importance": "must"
+      }
+    ],
+    "expected_filters": {
+      "guideline_id": "prosta",
+      "recommendation_grade": null,
+      "chunk_type": "section"
+    },
+    "requires_comparison": false,
+    "needs_pubmed": true,
+    "requires_clarification": false,
+    "missing_clinical_dimensions": [],
+    "clarification_rationale": null,
+    "expected_clarification": null,
+    "claim_verdict": null,
+    "expected_answer_format": "structured",
+    "expected_answer_sections": [
+      "answer",
+      "citations",
+      "plain_language"
+    ],
+    "retrieval_challenge_types": [
+      "synonym_expansion",
+      "long_context_synthesis"
+    ],
+    "should_refuse": false,
+    "should_redact_pii": false,
+    "expected_tools": [
+      "pubmed_search",
+      "search_guidelines"
+    ],
+    "notes": "Bootstrap eval item generated automatically from documented evaluation coverage. Replace seed:* identifiers, pages, and answer wording after chunk export and manual review. No chunk export was available, so this item remains in bootstrap mode."
+  }
+]

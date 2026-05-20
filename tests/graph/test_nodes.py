@@ -7,7 +7,8 @@ from src.graph.nodes.agent import run_agent
 from src.graph.nodes.answer import generate_answer
 from src.graph.nodes.confidence import check_confidence
 from src.graph.nodes.guardrail_input import apply_input_guardrail
-from src.api.routes.chat import _load_session_memory, _save_session_memory, _session_memory
+import src.api.routes.chat as chat_module
+from src.api.conversation_store import ConversationStore
 
 
 def _base_state() -> RAGState:
@@ -18,6 +19,10 @@ def _base_state() -> RAGState:
         metadata_filters={},
         intent="",
         query_decomposition=[],
+        requires_clarification=False,
+        missing_clinical_dimensions=[],
+        clarification_rationale=None,
+        expected_clarification=None,
         user_role="user",
         allowed_sources=["guidelines"],
         retrieved_chunks=[],
@@ -45,11 +50,69 @@ def _base_state() -> RAGState:
 def test_rewrite_query_updates_state(mocker):
     mock_client = MagicMock()
     mock_client.chat.completions.create.return_value = MagicMock(
-        choices=[MagicMock(message=MagicMock(content='{"rewritten_query":"Screening-Empfehlung Mammakarzinom","guideline_id":"","grade":"","chunk_type":"","intent":"factual"}'))]
+        choices=[MagicMock(message=MagicMock(content='{"rewritten_query":"Screening-Empfehlung Mammakarzinom","guideline_id":"","grade":"","chunk_type":"","intent":"factual","requires_clarification":false,"missing_clinical_dimensions":[],"clarification_rationale":null,"expected_clarification":null}'))]
     )
     state = _base_state()
     result = rewrite_query(state, client=mock_client)
     assert result["rewritten_query"] == "Screening-Empfehlung Mammakarzinom"
+    assert result["requires_clarification"] is False
+
+
+def test_rewrite_query_detects_clarification_need():
+    mock_client = MagicMock()
+    mock_client.chat.completions.create.return_value = MagicMock(
+        choices=[MagicMock(message=MagicMock(content='{"rewritten_query":"Therapie Empfehlung Mammakarzinom Leitlinie","guideline_id":"mamma","grade":"","chunk_type":"recommendation","intent":"recommendation","requires_clarification":true,"missing_clinical_dimensions":["disease_stage","therapy_setting","molecular_subtype"],"clarification_rationale":"Die Anfrage ist klinisch zu unspezifisch.","expected_clarification":"Bitte präzisieren Sie, ob es um eine adjuvante, neoadjuvante oder metastasierte Situation geht."}'))]
+    )
+
+    result = rewrite_query(_base_state(), client=mock_client)
+
+    assert result["requires_clarification"] is True
+    assert result["missing_clinical_dimensions"] == ["disease_stage", "therapy_setting", "molecular_subtype"]
+    assert result["expected_clarification"].startswith("Bitte präzisieren Sie")
+
+
+def test_rewrite_query_allows_only_one_clarification_turn():
+    mock_client = MagicMock()
+    mock_client.chat.completions.create.return_value = MagicMock(
+        choices=[MagicMock(message=MagicMock(content='{"rewritten_query":"Chemotherapie metastasiertes HER2-positives Mammakarzinom Leitlinie","guideline_id":"mamma","grade":"","chunk_type":"recommendation","intent":"recommendation","requires_clarification":true,"missing_clinical_dimensions":["line_of_therapy","patient_subgroup"],"clarification_rationale":"Es fehlen weitere Details.","expected_clarification":"Bitte nennen Sie noch die Therapielinie."}'))]
+    )
+
+    state = _base_state()
+    state["user_query"] = "HER2-positiv"
+    state["messages"] = [
+        HumanMessage(content="Was sind die Empfehlungen zur Chemotherapie beim Mammakarzinom?"),
+        AIMessage(content="Fachliche Antwort:\nIch brauche vor der Leitlinienrecherche noch eine Präzisierung Ihrer Frage.\n\nBitte präzisieren Sie, ob es um eine adjuvante, neoadjuvante oder metastasierte Situation geht."),
+        HumanMessage(content="metastasiert"),
+    ]
+
+    result = rewrite_query(state, client=mock_client)
+
+    assert result["requires_clarification"] is False
+    assert result["missing_clinical_dimensions"] == []
+    assert result["clarification_rationale"] is None
+    assert result["expected_clarification"] is None
+
+
+def test_rewrite_query_blocks_repeat_clarification_from_prior_answer_memory():
+    mock_client = MagicMock()
+    mock_client.chat.completions.create.return_value = MagicMock(
+        choices=[MagicMock(message=MagicMock(content='{"rewritten_query":"neoadjuvante Chemotherapie Mammakarzinom Leitlinie","guideline_id":"mamma","grade":"","chunk_type":"recommendation","intent":"recommendation","requires_clarification":true,"missing_clinical_dimensions":["molecular_subtype","biomarker_status"],"clarification_rationale":"Es fehlen weitere Details.","expected_clarification":"Bitte nennen Sie noch den Subtyp."}'))]
+    )
+
+    state = _base_state()
+    state["user_query"] = "neoadjuvant"
+    state["messages"] = []
+    state["prior_answer_professional"] = (
+        "Ich brauche vor der Leitlinienrecherche noch eine Präzisierung Ihrer Frage.\n\n"
+        "Bitte präzisieren Sie, für welche klinische Situation Sie Empfehlungen suchen."
+    )
+
+    result = rewrite_query(state, client=mock_client)
+
+    assert result["requires_clarification"] is False
+    assert result["missing_clinical_dimensions"] == []
+    assert result["clarification_rationale"] is None
+    assert result["expected_clarification"] is None
 
 
 def test_turn_router_supports_combined_intents():
@@ -146,11 +209,12 @@ def test_generate_answer_memory_followup_rewrites_prior_answer(mocker):
     assert result["citations"][0]["label"] == "[1]"
 
 
-def test_in_memory_session_fallback_persists_prior_context():
+def test_in_memory_session_fallback_persists_prior_context(tmp_path, monkeypatch):
     session_id = "memory-test"
-    _session_memory.pop(session_id, None)
+    store = ConversationStore(tmp_path / "chat-memory.db")
+    monkeypatch.setattr(chat_module, "get_conversation_store", lambda: store)
 
-    first = _load_session_memory(session_id)
+    first = chat_module._load_session_memory(session_id)
     assert first["messages"] == []
 
     final_state = {
@@ -159,9 +223,9 @@ def test_in_memory_session_fallback_persists_prior_context():
         "citations": [{"label": "[1]"}],
         "retrieved_chunks": [{"chunk_id": "c1", "citation": "[1]", "text": "abc"}],
     }
-    _save_session_memory(session_id, final_state, "Welche Empfehlungsgrade gibt es?")
+    chat_module._save_session_memory(session_id, final_state, "Welche Empfehlungsgrade gibt es?")
 
-    second = _load_session_memory(session_id)
+    second = chat_module._load_session_memory(session_id)
     assert len(second["messages"]) == 2
     assert "Vorherige fachliche Antwort" in str(second["messages"][1].content)
     assert "Vorherige einfache Antwort" in str(second["messages"][1].content)

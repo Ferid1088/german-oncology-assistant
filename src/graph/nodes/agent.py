@@ -179,6 +179,7 @@ def run_agent(state: RAGState, client: OpenAI | None = None) -> dict:
             messages=messages,
             tools=TOOLS_SPEC,
             tool_choice=tool_choice,
+            max_tokens=1500,
         )
         msg = resp.choices[0].message
 

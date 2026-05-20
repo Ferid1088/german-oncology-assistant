@@ -226,14 +226,199 @@ Important fields include:
 - `source_chunk_ids`
 - `expected_answer`
 - `expected_answer_plain_language`
+- `expected_recommendation_metadata`
 - `gold_chunk_ids`
 - `gold_sections`
 - `gold_pages`
+- `required_citations`
 - `expected_filters`
 - `requires_comparison`
 - `needs_pubmed`
+- `requires_clarification`
+- `missing_clinical_dimensions`
+- `clarification_rationale`
+- `expected_clarification`
+- `claim_verdict`
+- `expected_answer_format`
+- `expected_answer_sections`
+- `retrieval_challenge_types`
 - `should_refuse`
 - `should_redact_pii`
+
+---
+
+### 5.1 Clinical evaluation extensions
+
+For medical RAG, correctness alone is not enough. The evaluation schema should also support:
+
+- **recommendation-strength verification**
+- **citation groundedness checks**
+- **clarification expectations for underspecified queries**
+- **contradiction-trap items**
+- **answer-format expectations**
+- **retrieval-debug taxonomy**
+
+Recommended additions:
+
+- `expected_recommendation_metadata`
+  - `recommendation_id`
+  - `recommendation_grade`
+  - `consensus_strength`
+  - `evidence_level`
+- `required_citations`
+- `claim_verdict`
+- `expected_answer_format`
+- `expected_answer_sections`
+- `retrieval_challenge_types`
+
+These fields help distinguish:
+
+- a correct answer that is **not properly grounded**
+- a grounded answer that **drops or inflates recommendation strength**
+- a safe assistant that **asks for clarification instead of hallucinating specificity**
+- a system that fails because of **retrieval/chunking structure**, not answer generation alone
+
+### 5.2 Keep corpus metadata separate from evaluation annotations
+
+Do not mix all responsibilities into one schema.
+
+- **Chunk metadata schema** (`docs/guideline-chunk-metadata.schema.json`) should describe what is extracted from the corpus.
+- **Evaluation dataset schema** (`docs/evaluation-dataset.schema.json`) should describe what the benchmark expects.
+- **Scoring harness outputs** should be computed during evaluation runs, not manually stored for every item.
+
+This separation makes the benchmark easier to maintain and helps isolate whether a failure originates in:
+
+- parsing/chunking
+- metadata extraction
+- retrieval
+- answer synthesis
+- guardrail or routing logic
+
+### 5.3 Recommendation metadata fidelity
+
+German oncology guidelines are recommendation-strength driven. Evaluation should verify whether the app preserves:
+
+- `recommendation_grade`
+- `consensus_strength`
+- `evidence_level`
+
+The recommended dataset field is:
+
+```json
+"expected_recommendation_metadata": {
+  "recommendation_id": "4.32",
+  "recommendation_grade": "A",
+  "consensus_strength": "starker Konsens",
+  "evidence_level": "1a"
+}
+```
+
+This helps detect strength inflation or loss of nuance in generated answers.
+
+### 5.4 Citation groundedness targets
+
+Correct answers are not sufficient if the response is not grounded in retrieved evidence.
+
+Use `required_citations` to define citation anchors that should be present or traceable in evaluation:
+
+```json
+"required_citations": [
+  {
+    "chunk_id": "mamma_v4_4_rec_4_32",
+    "page_start": 182,
+    "page_end": 182,
+    "section_path": ["5", "5.4", "5.4.2"],
+    "recommendation_id": "4.32",
+    "citation_importance": "must"
+  }
+]
+```
+
+Recommended `citation_importance` values:
+
+- `must`
+- `should`
+- `optional`
+
+This makes it possible to evaluate groundedness separately from correctness.
+
+### 5.5 Ambiguity and clarification expectations
+
+Clinical questions are often underspecified. For example:
+
+- tumor entity missing
+- disease stage missing
+- therapy setting missing
+- molecular subtype or biomarker status missing
+
+For such items, annotate:
+
+- `requires_clarification`
+- `missing_clinical_dimensions`
+- `clarification_rationale`
+- `expected_clarification`
+
+This lets the benchmark reward a safe clarification-first response instead of a fabricated precise answer.
+
+### 5.6 Contradiction and claim-verification items
+
+Add support for adversarial or contradiction-trap prompts using `claim_verdict`:
+
+- `supported`
+- `contradicted`
+- `misleading`
+- `not_in_guideline`
+
+These items are especially useful for testing whether the app confidently repeats misinformation when the wording sounds plausible.
+
+### 5.7 Answer shape and UX consistency
+
+Not every question should produce the same answer shape.
+
+Add:
+
+- `expected_answer_format`
+  - `concise`
+  - `structured`
+  - `comparative`
+  - `explanatory`
+  - `refusal`
+- `expected_answer_sections`
+
+These help evaluate whether the assistant responds with the right style and structure, not only the right content.
+
+### 5.8 Retrieval challenge taxonomy
+
+The current `easy | medium | hard` difficulty label is useful but too coarse for debugging retrieval.
+
+Use multi-label `retrieval_challenge_types` such as:
+
+- `lexical_mismatch`
+- `synonym_expansion`
+- `long_context_synthesis`
+- `cross_section_aggregation`
+- `recommendation_extraction`
+- `citation_localization`
+- `metadata_filtering`
+- `recommendation_strength_extraction`
+- `table_parsing`
+- `hierarchy_resolution`
+
+This is especially useful when the main bottleneck is not embedding quality but imperfect chunk metadata and section anchoring.
+
+### 5.9 Chunk metadata prerequisites
+
+To support strong evaluation, the chunk metadata layer should reliably expose:
+
+- `recommendation_id`
+- `recommendation_grade`
+- `consensus_strength`
+- `evidence_level`
+- stable `section_path`
+- stable page anchoring (`page_start`, `page_end`)
+- normalized metadata fields where needed for filtering and evaluation
+
+If these are weak, exact recommendation lookup and grounded evaluation will also be weak, even if semantic retrieval seems acceptable.
 
 ---
 
@@ -257,7 +442,24 @@ In addition, for app-level testing, manually inspect:
 - whether the correct tool was invoked
 - whether guardrails fired correctly
 
-### 6.1 Automatic vs manual evaluation
+### 6.1 Specialized clinical evaluation checks
+
+Beyond generic Ragas-style metrics, add targeted checks for:
+
+- **recommendation metadata match**
+  - does the answer preserve grade, consensus strength, and evidence level when relevant?
+- **citation faithfulness**
+  - are the required citation anchors present or traceable?
+- **clarification quality**
+  - does the system ask for clarification when the query is clinically underspecified?
+- **claim-verification behavior**
+  - does the system refute contradicted or misleading prompts instead of echoing them?
+- **answer-shape compliance**
+  - does the response match the expected format and sections?
+- **retrieval challenge diagnostics**
+  - do failures cluster by chunking, metadata, long-context synthesis, or citation localization?
+
+### 6.2 Automatic vs manual evaluation
 
 Separate evaluation modes clearly:
 
@@ -267,7 +469,7 @@ Separate evaluation modes clearly:
 
 This separation helps avoid mixing exploratory review with regression testing.
 
-### 6.2 Provisional pass/fail targets
+### 6.3 Provisional pass/fail targets
 
 At the beginning, use provisional thresholds rather than aiming for perfect scores.
 
@@ -328,7 +530,7 @@ The recommended workflow for building the evaluation dataset is:
 2. filter high-value chunks by metadata (`chunk_type`, guideline, recommendation grade)
 3. sample source chunks from each guideline
 4. draft candidate questions and reference answers
-5. manually validate and label each item
+5. manually validate and label each item, including citation and recommendation-strength expectations where relevant
 6. save the dataset in structured JSON following `evaluation-dataset.schema.json`
 7. run baseline evaluation
 8. reuse the same dataset for regression testing and A/B comparison
@@ -342,12 +544,28 @@ For each item:
 1. confirm the gold evidence really supports the intended answer
 2. verify the retrieval labels are neither too narrow nor too broad
 3. assign a question type and difficulty label
-4. note any ambiguity in `notes`
-5. version the dataset whenever items are added, removed, or relabeled
+4. define required citation anchors when groundedness matters
+5. define recommendation metadata expectations for recommendation items when available
+6. mark ambiguity and clarification expectations for underspecified clinical prompts
+7. note any special retrieval challenge types in `retrieval_challenge_types`
+8. version the dataset whenever items are added, removed, or relabeled
+
+### 9.2 Metadata normalization review
+
+Before trusting retrieval or evaluation scores, inspect whether the chunk metadata extraction pipeline correctly normalizes:
+
+- recommendation identifiers
+- recommendation grade
+- consensus strength
+- evidence level
+- section hierarchy
+- page anchors
+
+In guideline PDFs, metadata extraction errors often degrade performance more than the embedding model choice itself.
 
 This will make later evaluation runs more trustworthy.
 
-### 9.2 Suggested file-level organization
+### 9.3 Suggested file-level organization
 
 Recommended future organization:
 

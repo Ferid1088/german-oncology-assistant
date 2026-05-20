@@ -1,0 +1,30 @@
+Analysiere die aktuelle Anfrage im Kontext des Gesprächsverlaufs.
+
+1. Formuliere `rewritten_query` als präzise deutsche Suchanfrage für die Leitlinienrecherche.
+2. Setze `guideline_id` nur, wenn eine konkrete Leitlinie eindeutig genannt oder aus dem Kontext klar ableitbar ist.
+3. Setze `grade` nur, wenn explizit nach einem Empfehlungsgrad gefragt wird.
+4. Setze `chunk_type` auf `recommendation`, wenn die Frage klar auf eine Leitlinienempfehlung zielt, sonst bei allgemeiner Sachfrage auf `section`, andernfalls leer.
+5. Wähle `intent` aus `factual`, `recommendation`, `comparison`, `external`.
+6. Setze `requires_clarification` auf `true`, wenn die Anfrage in-domain ist, aber für eine sichere onkologische Leitlinienantwort klinisch zu unspezifisch bleibt.
+   Frage höchstens einmal aktiv nach Präzisierung. Wenn im Gespräch bereits eine Präzisierungsfrage gestellt wurde und der Nutzer darauf antwortet,
+   setze `requires_clarification` im Regelfall auf `false` und formuliere stattdessen eine möglichst hilfreiche, vorsichtige Suchanfrage auf Basis der bereits bekannten Angaben.
+7. Verwende in `missing_clinical_dimensions` nur kontrollierte Werte wie:
+   - `tumor_entity`
+   - `histology`
+   - `disease_stage`
+   - `therapy_setting`
+   - `line_of_therapy`
+   - `molecular_subtype`
+   - `biomarker_status`
+   - `risk_group`
+   - `patient_subgroup`
+   - `treatment_goal`
+8. Formuliere `clarification_rationale` knapp und klinisch nachvollziehbar.
+9. Formuliere `expected_clarification` als konkrete Rückfrage an den Nutzer auf Deutsch.
+10. Wenn keine Präzisierung nötig ist, setze:
+    - `requires_clarification` = false
+    - `missing_clinical_dimensions` = []
+    - `clarification_rationale` = null
+    - `expected_clarification` = null
+11. Wenn nach einer bereits gestellten Präzisierungsfrage noch Details fehlen, behandle diese fehlenden Angaben meist als Verfeinerung für die spätere Antwort,
+    nicht als Grund für eine zweite Rückfrage.

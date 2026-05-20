@@ -50,11 +50,27 @@ def _blocked_response(state: RAGState) -> dict:
     }
 
 
+def _clarification_response(state: RAGState) -> dict:
+    rationale = (state.get("clarification_rationale") or "").strip()
+    followup = (state.get("expected_clarification") or "Bitte präzisieren Sie Ihre Anfrage.").strip()
+
+    intro = "Ich brauche vor der Leitlinienrecherche noch eine Präzisierung Ihrer Frage."
+    professional = "\n\n".join(part for part in [intro, rationale, followup] if part)
+    return {
+        "answer_professional": professional,
+        "answer_plain": followup,
+        "citations": [],
+        "disclaimer": "",
+    }
+
+
 def _route_after_guardrail(state: RAGState) -> str:
     return "blocked" if state["input_blocked"] else "rewrite"
 
 
 def _route_after_rewrite(state: RAGState) -> str:
+    if state.get("requires_clarification"):
+        return "clarification"
     return "turn_router"
 
 
@@ -64,6 +80,7 @@ def build_graph(checkpointer=None):
     builder.add_node("guardrail_input", apply_input_guardrail)
     builder.add_node("blocked", _blocked_response)
     builder.add_node("rewrite", rewrite_query)
+    builder.add_node("clarification", _clarification_response)
     builder.add_node("turn_router", route_turn)
     builder.add_node("agent", run_agent)
     builder.add_node("confidence", check_confidence)
@@ -78,8 +95,10 @@ def build_graph(checkpointer=None):
     })
     builder.add_edge("blocked", END)
     builder.add_conditional_edges("rewrite", _route_after_rewrite, {
+        "clarification": "clarification",
         "turn_router": "turn_router",
     })
+    builder.add_edge("clarification", END)
     builder.add_edge("turn_router", "agent")
     builder.add_edge("agent", "confidence")
     builder.add_conditional_edges("confidence", needs_escalation, {

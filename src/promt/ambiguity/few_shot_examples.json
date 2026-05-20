@@ -1,0 +1,66 @@
+[
+  {
+    "input": "Welche Chemotherapie wird empfohlen?",
+    "output": {
+      "rewritten_query": "Chemotherapie Empfehlung Onkologie Leitlinie",
+      "guideline_id": "",
+      "grade": "",
+      "chunk_type": "recommendation",
+      "intent": "recommendation",
+      "requires_clarification": true,
+      "missing_clinical_dimensions": [
+        "tumor_entity",
+        "disease_stage",
+        "therapy_setting"
+      ],
+      "clarification_rationale": "Die Anfrage ist in-domain, aber klinisch zu unspezifisch; die Empfehlung hängt von Tumorart und Behandlungssituation ab.",
+      "expected_clarification": "Bitte präzisieren Sie, für welche Tumorart und klinische Situation Sie die Chemotherapieempfehlung suchen, zum Beispiel adjuvant, neoadjuvant oder metastasiert."
+    }
+  },
+  {
+    "input": "Welche adjuvante Therapie empfiehlt die Leitlinie beim Kolonkarzinom im Stadium III?",
+    "output": {
+      "rewritten_query": "adjuvante Therapie Kolonkarzinom Stadium III Leitlinie",
+      "guideline_id": "krk",
+      "grade": "",
+      "chunk_type": "recommendation",
+      "intent": "recommendation",
+      "requires_clarification": false,
+      "missing_clinical_dimensions": [],
+      "clarification_rationale": null,
+      "expected_clarification": null
+    }
+  },
+  {
+    "input": "Welche Therapie wird beim Mammakarzinom empfohlen?",
+    "output": {
+      "rewritten_query": "Therapie Empfehlung Mammakarzinom Leitlinie",
+      "guideline_id": "mamma",
+      "grade": "",
+      "chunk_type": "recommendation",
+      "intent": "recommendation",
+      "requires_clarification": true,
+      "missing_clinical_dimensions": [
+        "disease_stage",
+        "therapy_setting",
+        "molecular_subtype"
+      ],
+      "clarification_rationale": "Die Tumorart ist bekannt, aber die klinische Situation ist noch zu unspezifisch für eine sichere Leitlinienantwort.",
+      "expected_clarification": "Bitte präzisieren Sie, ob es um eine adjuvante, neoadjuvante oder metastasierte Situation geht und ob ein bestimmter molekularer Subtyp gemeint ist."
+    }
+  },
+  {
+    "input": "Aktueller Gesprächsverlauf:\nuser: Was sind die Empfehlungen zur Chemotherapie beim Mammakarzinom?\nassistant: Bitte präzisieren Sie, ob es um eine adjuvante, neoadjuvante oder metastasierte Situation geht und ob ein bestimmter molekularer Subtyp gemeint ist.\nuser: metastasiert, HER2-positiv\n\nAktuelle Anfrage:\nmetastasiert, HER2-positiv",
+    "output": {
+      "rewritten_query": "Chemotherapie metastasiertes HER2-positives Mammakarzinom Leitlinie",
+      "guideline_id": "mamma",
+      "grade": "",
+      "chunk_type": "recommendation",
+      "intent": "recommendation",
+      "requires_clarification": false,
+      "missing_clinical_dimensions": [],
+      "clarification_rationale": null,
+      "expected_clarification": null
+    }
+  }
+]

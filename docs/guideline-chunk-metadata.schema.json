@@ -54,6 +54,14 @@
       },
       "minItems": 1
     },
+    "section_path_normalized": {
+      "type": "array",
+      "description": "Normalized section path used for stable filtering and evaluation across parser variants.",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
     "section_title": {
       "type": ["string", "null"],
       "description": "Optional human-readable section title."
@@ -100,9 +108,21 @@
       "type": ["string", "null"],
       "description": "Recommendation grade such as A, B, or 0."
     },
+    "consensus_strength": {
+      "type": ["string", "null"],
+      "description": "Consensus strength associated with the recommendation, e.g. starker Konsens, Konsens, mehrheitliche Zustimmung."
+    },
     "evidence_level": {
       "type": ["string", "null"],
       "description": "Evidence level associated with the recommendation, if available."
+    },
+    "recommendation_grade_normalized": {
+      "type": ["string", "null"],
+      "description": "Normalized recommendation grade used for retrieval filters and evaluation consistency."
+    },
+    "evidence_level_normalized": {
+      "type": ["string", "null"],
+      "description": "Normalized evidence level used for downstream filtering and evaluation."
     },
     "clinical_intent": {
       "type": ["string", "null"],
