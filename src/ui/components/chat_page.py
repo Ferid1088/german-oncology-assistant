@@ -1,11 +1,17 @@
 import json
 import uuid
 import datetime
+from urllib.parse import quote
 import httpx
 import streamlit as st
-from src.ui.components.source_cards import render_source_cards
+from src.ui.components.source_cards import render_source_cards, render_tool_calls
 from src.ui.components.inline_citations import annotate_citations
 from src.ui.components.filters import render_filters, render_feedback_buttons
+from src.ui.components.insights_panels import (
+    render_external_search_panel,
+    render_rag_process_panel,
+    render_token_usage_panel,
+)
 
 _CSS = """
 <style>
@@ -189,12 +195,19 @@ _DATE_LABEL_STYLE = (
 
 
 def _combine_answer_parts(answer_professional: str, answer_plain: str) -> str:
+    if not answer_plain:
+        return (answer_professional or "").strip()
+
     parts = []
     if answer_professional:
         parts.append(f"Fachliche Antwort\n\n{answer_professional}")
     if answer_plain:
         parts.append(f"In einfachen Worten\n\n{answer_plain}")
     return "\n\n".join(parts).strip()
+
+
+def _is_clarification_payload(payload: dict) -> bool:
+    return bool(payload.get("requires_clarification")) and not payload.get("answer_plain")
 
 
 def _as_datetime(value) -> datetime.datetime:
@@ -245,9 +258,54 @@ def _show_backend_unavailable(api_url: str, error: Exception) -> None:
         "Bitte warten Sie einen Moment und versuchen Sie es erneut."
     )
     st.caption(f"Backend URL: {api_url}")
-    st.caption(f"Fehler: {error}")
+    with st.expander("Technical details", expanded=False):
+        st.code(str(error))
     if st.button("Erneut versuchen", use_container_width=True):
         st.rerun()
+
+
+def _render_validation_feedback(payload: dict) -> None:
+    technical = payload.get("technical_details") or {}
+    if payload.get("blocked_reason") != "validation" and technical.get("status_code") != 422:
+        return
+
+    st.warning(payload.get("answer_professional") or payload.get("message") or "The request is invalid.")
+    detail_title = payload.get("technical_title") or "Technical details"
+    with st.expander(detail_title, expanded=False):
+        st.json(technical)
+
+
+def _render_request_diagnostics(payload: dict) -> None:
+    diagnostics = {
+        "trace_id": payload.get("trace_id"),
+        "followup_routing": payload.get("followup_routing"),
+        "requires_clarification": payload.get("requires_clarification"),
+        "missing_clinical_dimensions": payload.get("missing_clinical_dimensions", []),
+        "tool_call_count": len(payload.get("tool_calls", [])),
+        "safety_warning": payload.get("safety_warning"),
+    }
+    technical_details = payload.get("technical_details")
+    if technical_details:
+        diagnostics["technical_details"] = technical_details
+
+    diagnostics = {k: v for k, v in diagnostics.items() if v not in (None, "", [], {})}
+    if not diagnostics:
+        return
+
+    with st.expander("Request diagnostics", expanded=False):
+        st.json(diagnostics)
+
+
+def _render_safety_panel(payload: dict) -> None:
+    warning = payload.get("safety_warning")
+    explanation = payload.get("safety_explanation")
+    title = payload.get("safety_title") or "Why was this limited?"
+
+    if warning:
+        st.warning(warning)
+    if explanation:
+        with st.expander(title, expanded=False):
+            st.markdown(explanation)
 
 
 def _create_conversation(api_url: str, api_key: str) -> str:
@@ -369,6 +427,27 @@ def _render_sidebar(api_url: str, api_key: str) -> dict:
                         _delete_conversation(cid, api_url, api_key)
                         st.rerun()
 
+        if st.session_state.get("active_id"):
+            session_id = st.session_state.active_id
+            encoded_key = quote(api_key, safe="")
+            st.divider()
+            st.caption("Export conversation")
+            st.link_button(
+                "JSON",
+                f"{api_url}/conversations/{session_id}/export?format=json&api_key={encoded_key}",
+                use_container_width=True,
+            )
+            st.link_button(
+                "CSV",
+                f"{api_url}/conversations/{session_id}/export?format=csv&api_key={encoded_key}",
+                use_container_width=True,
+            )
+            st.link_button(
+                "PDF",
+                f"{api_url}/conversations/{session_id}/export?format=pdf&api_key={encoded_key}",
+                use_container_width=True,
+            )
+
     return filters
 
 
@@ -417,30 +496,91 @@ def render_chat_page(api_url: str, api_key: str) -> None:
 
                 if payload and not payload.get("blocked"):
                     citations = payload.get("citations", [])
+                    tool_calls = payload.get("tool_calls", [])
+                    rag_trace = payload.get("rag_trace", [])
+                    token_usage = payload.get("token_usage", {})
+                    external_search_snippets = payload.get("external_search_snippets", [])
                     pro_raw = payload.get("answer_professional", "")
                     plain_raw = payload.get("answer_plain", "")
                     pro = annotate_citations(pro_raw, citations) if pro_raw else ""
                     plain = annotate_citations(plain_raw, citations) if plain_raw else ""
-                    if pro:
-                        st.markdown("**Fachliche Antwort**")
-                        st.markdown(pro, unsafe_allow_html=True)
-                    if plain:
-                        if pro:
-                            st.markdown("---")
-                        st.markdown("**In einfachen Worten**")
-                        st.markdown(plain, unsafe_allow_html=True)
-                    st.markdown(payload.get("disclaimer", ""))
-                    render_source_cards(citations)
-                    render_feedback_buttons(conv["session_id"], query, api_url, api_key)
+                    clarification_only = _is_clarification_payload(payload)
+                    main_col, side_col = st.columns([3, 1], gap="large")
+                    with main_col:
+                        _render_safety_panel(payload)
+                        if clarification_only and pro:
+                            st.markdown(pro, unsafe_allow_html=True)
+                        elif pro:
+                            st.markdown("**Fachliche Antwort**")
+                            st.markdown(pro, unsafe_allow_html=True)
+                        if plain:
+                            if pro:
+                                st.markdown("---")
+                            st.markdown("**In einfachen Worten**")
+                            st.markdown(plain, unsafe_allow_html=True)
+                        st.markdown(payload.get("disclaimer", ""))
+                        render_source_cards(citations)
+                        _render_request_diagnostics(payload)
+                        render_feedback_buttons(conv["session_id"], query, api_url, api_key)
+                    with side_col:
+                        render_token_usage_panel(token_usage)
+                        render_rag_process_panel(rag_trace)
+                        if tool_calls:
+                            render_tool_calls(tool_calls)
+                        render_external_search_panel(external_search_snippets)
                     answer_text = _combine_answer_parts(pro_raw, plain_raw)
                 elif payload and payload.get("blocked"):
+                    _render_validation_feedback(payload)
+                    _render_safety_panel(payload)
                     st.warning(payload.get("answer_professional", "Anfrage blockiert."))
-                    answer_text = payload.get("answer_professional", "")
+                    plain_raw = payload.get("answer_plain", "")
+                    if plain_raw:
+                        st.markdown(plain_raw)
+                    retry_after = payload.get("retry_after_seconds")
+                    if retry_after:
+                        st.caption(f"Retry in {retry_after} seconds.")
+                    explanation_title = payload.get("blocked_explanation_title") or "Why?"
+                    explanation = payload.get("blocked_explanation")
+                    if explanation:
+                        with st.expander(explanation_title, expanded=False):
+                            st.markdown(explanation)
+                    render_rag_process_panel(payload.get("rag_trace", []))
+                    _render_request_diagnostics(payload)
+                    answer_text = _combine_answer_parts(payload.get("answer_professional", ""), plain_raw)
                 else:
                     st.error("Keine Antwort erhalten.")
                     answer_text = ""
 
                 conv["messages"].append({"role": "assistant", "content": answer_text})
 
+            except httpx.HTTPStatusError as e:
+                response = e.response
+                detail = {}
+                try:
+                    detail = response.json()
+                except Exception:
+                    detail = {"message": str(e)}
+
+                if response.status_code == 422:
+                    payload = {
+                        "blocked": True,
+                        "blocked_reason": "validation",
+                        "answer_professional": detail.get("message", "The request data is invalid."),
+                        "answer_plain": "Please adjust the input and try again.",
+                        "technical_title": detail.get("technical_title", "Technical details"),
+                        "technical_details": detail.get("technical_details", detail),
+                        "trace_id": detail.get("trace_id"),
+                    }
+                    _render_validation_feedback(payload)
+                    plain_raw = payload.get("answer_plain", "")
+                    if plain_raw:
+                        st.markdown(plain_raw)
+                    _render_request_diagnostics(payload)
+                    conv["messages"].append({
+                        "role": "assistant",
+                        "content": _combine_answer_parts(payload.get("answer_professional", ""), plain_raw),
+                    })
+                else:
+                    st.error(f"Fehler: {e}")
             except Exception as e:
                 st.error(f"Fehler: {e}")

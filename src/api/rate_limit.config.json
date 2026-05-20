@@ -1,0 +1,20 @@
+{
+  "bucket_key_parts": ["route_group", "api_key", "ip"],
+  "route_groups": {
+    "chat": {
+      "limit": 20,
+      "window_seconds": 60,
+      "routes": ["/chat"]
+    },
+    "feedback": {
+      "limit": 60,
+      "window_seconds": 60,
+      "routes": ["/feedback"]
+    },
+    "general": {
+      "limit": 60,
+      "window_seconds": 60,
+      "routes": ["/conversations", "/conversations/{session_id}", "/conversations/{session_id}/export"]
+    }
+  }
+}

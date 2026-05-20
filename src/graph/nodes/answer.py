@@ -1,9 +1,11 @@
 import os
 import json
 import re
+import time
 from openai import OpenAI
 from src.graph.state import RAGState
 from src.prompts.answer import EXTRACT_PROMPT, SYNTHESIZE_PROMPT, MEMORY_REWRITE_PROMPT
+from src.telemetry import append_rag_step, merge_token_usage, usage_from_response
 
 GEN_MODEL = os.getenv("GENERATION_MODEL", "openai/gpt-4o")
 CHEAP_MODEL = os.getenv("CHEAP_MODEL", "google/gemini-2.5-flash")
@@ -73,18 +75,21 @@ def _basic_memory_rewrite(query: str, prior_answer: str, prior_plain: str) -> di
     return {"answer_professional": source, "answer_plain": ""}
 
 
-def _extract(llm: OpenAI, query: str, context: str) -> str:
+def _extract(llm: OpenAI, query: str, context: str) -> tuple[str, dict]:
     """Stage 1: extract verbatim sentences from chunks that answer the query."""
+    started = time.perf_counter()
     resp = llm.chat.completions.create(
         model=CHEAP_MODEL,
         messages=[{"role": "user", "content": EXTRACT_PROMPT.format(query=query, context=context)}],
         max_tokens=1200,
     )
-    return resp.choices[0].message.content.strip()
+    duration_ms = (time.perf_counter() - started) * 1000
+    return resp.choices[0].message.content.strip(), usage_from_response(resp, model=CHEAP_MODEL, step="answer_extract", duration_ms=duration_ms)
 
 
-def _synthesize(llm: OpenAI, query: str, extracted: str, valid_numbers: str) -> str:
+def _synthesize(llm: OpenAI, query: str, extracted: str, valid_numbers: str) -> tuple[str, dict]:
     """Stage 2: synthesize coherent answer from extracted sentences only."""
+    started = time.perf_counter()
     resp = llm.chat.completions.create(
         model=GEN_MODEL,
         messages=[{"role": "user", "content": SYNTHESIZE_PROMPT.format(
@@ -94,7 +99,8 @@ def _synthesize(llm: OpenAI, query: str, extracted: str, valid_numbers: str) -> 
         )}],
         max_tokens=1500,
     )
-    return resp.choices[0].message.content.strip()
+    duration_ms = (time.perf_counter() - started) * 1000
+    return resp.choices[0].message.content.strip(), usage_from_response(resp, model=GEN_MODEL, step="answer_synthesize", duration_ms=duration_ms)
 
 
 def _rewrite_from_memory(
@@ -106,6 +112,7 @@ def _rewrite_from_memory(
     valid_numbers: str,
 ) -> dict:
     try:
+        started = time.perf_counter()
         resp = llm.chat.completions.create(
             model=GEN_MODEL,
             messages=[{"role": "user", "content": MEMORY_REWRITE_PROMPT.format(
@@ -117,6 +124,7 @@ def _rewrite_from_memory(
             )}],
             max_tokens=900,
         )
+        duration_ms = (time.perf_counter() - started) * 1000
         raw = _strip_code_fence(resp.choices[0].message.content or "")
         parsed = json.loads(raw)
         answer_professional = str(parsed.get("answer_professional", "") or "").strip()
@@ -125,15 +133,19 @@ def _rewrite_from_memory(
             return {
                 "answer_professional": answer_professional,
                 "answer_plain": answer_plain,
+                "usage": usage_from_response(resp, model=GEN_MODEL, step="answer_memory_rewrite", duration_ms=duration_ms),
             }
     except Exception:
         pass
 
-    return _basic_memory_rewrite(query, prior_answer, prior_plain)
+    fallback = _basic_memory_rewrite(query, prior_answer, prior_plain)
+    fallback["usage"] = {}
+    return fallback
 
 
 def generate_answer(state: RAGState, client: OpenAI | None = None) -> dict:
     llm = client or _client()
+    token_usage = state.get("token_usage", {})
     followup_memory = state.get("followup_routing") == "memory"
     chunks = state.get("retrieved_chunks", [])
     if not chunks and followup_memory:
@@ -151,6 +163,7 @@ def generate_answer(state: RAGState, client: OpenAI | None = None) -> dict:
             "section_path": ch.get("section_path", []),
             "page_start": ch.get("page_start"),
             "page_end": ch.get("page_end"),
+            "page_numbers": ch.get("page_numbers", []),
             "section_title": ch.get("section_title", ""),
             "guideline_id": ch.get("guideline_id", ""),
             "recommendation_id": ch.get("recommendation_id", ""),
@@ -186,6 +199,7 @@ def generate_answer(state: RAGState, client: OpenAI | None = None) -> dict:
         )
         pro = rewritten.get("answer_professional", "")
         plain = rewritten.get("answer_plain", "")
+        token_usage = merge_token_usage(token_usage, rewritten.get("usage", {}))
         full = "\n\n".join(filter(None, [pro, plain]))
 
         used_indices: set[int] = set()
@@ -199,6 +213,14 @@ def generate_answer(state: RAGState, client: OpenAI | None = None) -> dict:
             "answer_plain": plain,
             "citations": citations,
             "disclaimer": DISCLAIMER,
+            "token_usage": token_usage,
+            "rag_trace": append_rag_step(
+                state.get("rag_trace", []),
+                name="answer",
+                status="ok",
+                summary="Answer was rewritten from prior conversation memory.",
+                details={"citation_count": len(citations), "followup_routing": "memory"},
+            ),
         }
 
     if followup_memory and (prior_answer or prior_plain):
@@ -210,7 +232,8 @@ def generate_answer(state: RAGState, client: OpenAI | None = None) -> dict:
         context = "\n\n".join(filter(None, [conversation_context, context]))
 
     # Stage 1: extract verbatim sentences from chunks
-    extracted = _extract(llm, state["user_query"], context)
+    extracted, extract_usage = _extract(llm, state["user_query"], context)
+    token_usage = merge_token_usage(token_usage, extract_usage)
 
     # If extraction found nothing relevant, refuse to generate
     if not extracted or extracted.strip().upper() == "NICHTS" or len(extracted.strip()) < 20:
@@ -219,11 +242,19 @@ def generate_answer(state: RAGState, client: OpenAI | None = None) -> dict:
             "answer_plain": _NOT_FOUND,
             "citations": [],
             "disclaimer": DISCLAIMER,
+            "token_usage": token_usage,
+            "rag_trace": append_rag_step(
+                state.get("rag_trace", []),
+                name="answer",
+                status="empty",
+                summary="Answer generation stopped because extraction found no grounded evidence.",
+            ),
         }
 
     # Stage 2: synthesize from extracted sentences only (no original chunks visible)
     valid_numbers = ", ".join(str(i) for i in range(1, n + 1))
-    full = _synthesize(llm, state["user_query"], extracted, valid_numbers)
+    full, synth_usage = _synthesize(llm, state["user_query"], extracted, valid_numbers)
+    token_usage = merge_token_usage(token_usage, synth_usage)
 
     if "**In einfachen Worten:**" in full:
         parts = full.split("**In einfachen Worten:**", 1)
@@ -245,4 +276,12 @@ def generate_answer(state: RAGState, client: OpenAI | None = None) -> dict:
         "answer_plain": plain,
         "citations": citations,
         "disclaimer": DISCLAIMER,
+        "token_usage": token_usage,
+        "rag_trace": append_rag_step(
+            state.get("rag_trace", []),
+            name="answer",
+            status="ok",
+            summary="Answer generation completed from retrieved evidence.",
+            details={"citation_count": len(citations), "followup_routing": state.get("followup_routing")},
+        ),
     }

@@ -244,6 +244,15 @@
       "minimum": 1,
       "description": "Ending page number for the chunk."
     },
+    "page_numbers": {
+      "type": "array",
+      "description": "Explicit sorted page list for citations that span multiple non-contiguous pages.",
+      "items": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "default": []
+    },
     "citation_label": {
       "type": ["string", "null"],
       "description": "Stable citation label used by the answer generation layer and UI source cards."

@@ -13,6 +13,7 @@ def test_search_guidelines_returns_list(mocker):
     mock_chunk.section_path = ["2", "2.1"]
     mock_chunk.page_start = 10
     mock_chunk.page_end = 11
+    mock_chunk.page_numbers = [127, 129]
     mock_chunk.recommendation_grade = "A"
     mock_chunk.recommendation_id = "2.1"
     mock_chunk.source_filename = "mammakarzinom_v4.4.pdf"
@@ -26,6 +27,8 @@ def test_search_guidelines_returns_list(mocker):
     assert result[0]["chunk_id"] == "abc"
     assert "text" in result[0]
     assert "citation" in result[0]
+    assert result[0]["page_numbers"] == [127, 129]
+    assert "S. 127, 129" in result[0]["citation"]
 
 
 def test_lookup_empfehlung_queries_by_id(mocker):

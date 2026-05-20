@@ -17,14 +17,15 @@ def _make_chunk(chunk_id: str, parent_chunk_id: str = "") -> RetrievedChunk:
         chunk_type="section",
         recommendation_grade="",
         parent_chunk_id=parent_chunk_id,
+        page_numbers=[1],
     )
 
 
 def test_expand_to_parents_batches_parent_fetches():
     client = MagicMock()
     client.get.return_value = [
-        {"chunk_id": "p1", "text": "Parent 1"},
-        {"chunk_id": "p2", "text": "Parent 2"},
+        {"chunk_id": "p1", "text": "Parent 1", "page_start": 7, "page_end": 7},
+        {"chunk_id": "p2", "text": "Parent 2", "page_start": 9, "page_end": 9},
     ]
 
     chunks = [
@@ -37,5 +38,8 @@ def test_expand_to_parents_batches_parent_fetches():
 
     client.get.assert_called_once()
     assert expanded[0].text == "Parent 1\n\nleaf c1"
+    assert expanded[0].page_numbers == [1, 7]
     assert expanded[1].text == "Parent 2\n\nleaf c2"
+    assert expanded[1].page_numbers == [1, 9]
     assert expanded[2].text == "Parent 1\n\nleaf c3"
+    assert expanded[2].page_numbers == [1, 7]

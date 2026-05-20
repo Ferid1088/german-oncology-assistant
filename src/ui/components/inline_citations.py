@@ -1,5 +1,6 @@
 import re
 import html as _html
+from src.citations import format_page_reference
 
 
 def _tooltip_content(citation: dict) -> str:
@@ -26,10 +27,8 @@ def _tooltip_content(citation: dict) -> str:
         if evidence:
             rec_line += f" · LoE {_html.escape(evidence)}"
         parts.append(rec_line)
-    if citation.get("page_start"):
-        page = f"Seite {citation['page_start']}"
-        if citation.get("page_end") and citation["page_end"] != citation["page_start"]:
-            page += f"–{citation['page_end']}"
+    page = format_page_reference(citation.get("page_numbers"), citation.get("page_start"), citation.get("page_end"))
+    if page:
         parts.append(f"🔖 {_html.escape(page)}")
     if citation.get("reference_ids"):
         refs = citation["reference_ids"]

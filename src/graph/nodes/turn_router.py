@@ -1,10 +1,12 @@
 import json
 import os
 import re
+import time
 from openai import OpenAI
 from src.graph.state import RAGState
 from src.graph.messages import get_message_content, get_message_role
 from src.prompts.turn_router import TURN_ROUTER_PROMPT
+from src.telemetry import append_rag_step, merge_token_usage, usage_from_response
 
 CHEAP_MODEL = os.getenv("CHEAP_MODEL", "google/gemini-2.5-flash")
 _VALID_INTENTS = {"clarify", "simplify", "expand", "refine", "new_query"}
@@ -74,11 +76,29 @@ def _history_block(messages: list) -> str:
 def route_turn(state: RAGState, client: OpenAI | None = None) -> dict:
     messages = state.get("messages", [])
     if not messages:
-        return {"turn_intents": ["new_query"], "followup_routing": "retrieve"}
+        return {
+            "turn_intents": ["new_query"],
+            "followup_routing": "retrieve",
+            "rag_trace": append_rag_step(
+                state.get("rag_trace", []),
+                name="turn_router",
+                status="ok",
+                summary="No prior conversation history was available, so the query was treated as a new retrieval turn.",
+            ),
+        }
 
     heuristic = _heuristic_followup_route(state["user_query"], has_history=bool(messages))
     if heuristic:
-        return heuristic
+        return {
+            **heuristic,
+            "rag_trace": append_rag_step(
+                state.get("rag_trace", []),
+                name="turn_router",
+                status="ok",
+                summary=f"Turn router used a heuristic and selected '{heuristic['followup_routing']}'.",
+                details={"turn_intents": heuristic.get("turn_intents", [])},
+            ),
+        }
 
     c = client or _client()
     prompt = TURN_ROUTER_PROMPT.format(
@@ -87,11 +107,13 @@ def route_turn(state: RAGState, client: OpenAI | None = None) -> dict:
     )
 
     try:
+        started = time.perf_counter()
         resp = c.chat.completions.create(
             model=CHEAP_MODEL,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=200,
         )
+        duration_ms = (time.perf_counter() - started) * 1000
         raw = (resp.choices[0].message.content or "").strip()
         if raw.startswith("```"):
             raw = raw.split("```")[1].lstrip("json").strip()
@@ -99,7 +121,16 @@ def route_turn(state: RAGState, client: OpenAI | None = None) -> dict:
                 raw = raw[:raw.index("```")]
         parsed = json.loads(raw)
     except Exception:
-        return {"turn_intents": ["new_query"], "followup_routing": "retrieve"}
+        return {
+            "turn_intents": ["new_query"],
+            "followup_routing": "retrieve",
+            "rag_trace": append_rag_step(
+                state.get("rag_trace", []),
+                name="turn_router",
+                status="error",
+                summary="Turn routing fell back to retrieval after an LLM parsing error.",
+            ),
+        }
 
     intents = [intent for intent in parsed.get("turn_intents", []) if intent in _VALID_INTENTS]
     if not intents:
@@ -112,7 +143,17 @@ def route_turn(state: RAGState, client: OpenAI | None = None) -> dict:
     if "new_query" in intents:
         routing = "retrieve"
 
+    usage = usage_from_response(resp, model=CHEAP_MODEL, step="turn_router", duration_ms=duration_ms)
     return {
         "turn_intents": intents,
         "followup_routing": routing,
+        "token_usage": merge_token_usage(state.get("token_usage", {}), usage),
+        "rag_trace": append_rag_step(
+            state.get("rag_trace", []),
+            name="turn_router",
+            status="ok",
+            summary=f"Turn router selected '{routing}' routing.",
+            details={"turn_intents": intents, "followup_routing": routing},
+            duration_ms=duration_ms,
+        ),
     }

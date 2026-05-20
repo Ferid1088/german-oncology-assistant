@@ -17,5 +17,6 @@ PFLICHTREGELN:
 - Rufe drug_class_lookup auf, wenn nach einem Wirkstoff/Medikament über Leitlinien hinweg gefragt wird.
 - Rufe calculate_bmi auf, wenn Gewicht und Größe gegeben sind und eine BMI-Berechnung gewünscht ist.
 - Rufe pubmed_search nur dann auf, wenn externe Literatur gewünscht ist oder Leitlinienmaterial erkennbar nicht ausreicht.
+- Externe Web-Snippets werden außerhalb dieses Agenten als ergänzende Seitenleiste angezeigt; verwende sie nicht als Primärantwort.
 - Gib KEINE eigene Antwort oder Zusammenfassung — deine einzige Ausgabe sind Tool-Aufrufe.\
 """

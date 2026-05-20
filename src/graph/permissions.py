@@ -8,6 +8,8 @@ ROLE_ALLOWED_TOOLS: dict[str, set[str]] = {
         "compare_guidelines",
         "drug_class_lookup",
         "calculate_bmi",
+        "pubmed_search",
+        "web_search_snippets",
     },
     "professional": {
         "search_guidelines",
@@ -16,6 +18,7 @@ ROLE_ALLOWED_TOOLS: dict[str, set[str]] = {
         "drug_class_lookup",
         "calculate_bmi",
         "pubmed_search",
+        "web_search_snippets",
     },
     "admin": {
         "search_guidelines",
@@ -24,6 +27,7 @@ ROLE_ALLOWED_TOOLS: dict[str, set[str]] = {
         "drug_class_lookup",
         "calculate_bmi",
         "pubmed_search",
+        "web_search_snippets",
     },
 }
 

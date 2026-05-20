@@ -14,6 +14,9 @@ def test_conversation_store_persists_turns_and_soft_deletes(tmp_path):
         "citations": [{"id": 1, "title": "Quelle"}],
         "retrieved_chunks": [{"id": "chunk-1"}],
         "tool_calls_log": [{"tool": "search_guidelines"}],
+        "rag_trace": [{"name": "rewrite", "status": "ok"}],
+        "token_usage": {"total_tokens": 42, "cost_usd": 0.001, "calls": []},
+        "external_search_snippets": [{"title": "Source", "snippet": "Snippet"}],
     }
 
     store.append_turn(
@@ -34,6 +37,12 @@ def test_conversation_store_persists_turns_and_soft_deletes(tmp_path):
     assert memory["prior_answer_plain"] == "Einfache Antwort"
     assert memory["prior_citations"] == [{"id": 1, "title": "Quelle"}]
     assert memory["prior_retrieved_chunks"] == [{"id": "chunk-1"}]
+
+    exported = store.export_conversation("conv-1")
+    assert exported is not None
+    assert exported["messages"][1]["rag_trace"] == [{"name": "rewrite", "status": "ok"}]
+    assert exported["messages"][1]["token_usage"]["total_tokens"] == 42
+    assert exported["messages"][1]["external_search_snippets"][0]["title"] == "Source"
 
     assert store.delete_conversation("conv-1") is True
     assert store.list_conversations() == []

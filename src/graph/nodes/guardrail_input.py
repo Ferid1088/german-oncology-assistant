@@ -1,4 +1,5 @@
 from src.graph.state import RAGState
+from src.telemetry import append_rag_step
 
 BLOCK_KEYWORDS = [
     "wetter", "weather", "sport", "fußball", "soccer", "football", "aktie",
@@ -43,6 +44,13 @@ def apply_input_guardrail(state: RAGState) -> dict:
             "input_blocked": True,
             "input_block_reason": "Die Anfrage wurde wegen eines möglichen Prompt-Injection-Musters blockiert.",
             "redacted_query": raw_query,
+            "rag_trace": append_rag_step(
+                state.get("rag_trace", []),
+                name="input_guardrail",
+                status="blocked",
+                summary="The request was blocked by the input guardrail.",
+                details={"reason": "prompt_injection"},
+            ),
         }
 
     # Only block queries that are clearly unrelated to medicine/oncology
@@ -52,10 +60,23 @@ def apply_input_guardrail(state: RAGState) -> dict:
             "input_blocked": True,
             "input_block_reason": "Ihre Anfrage scheint nicht onkologische Leitlinien zu betreffen. Bitte stellen Sie medizinische Fragen zu den S3-Leitlinien.",
             "redacted_query": raw_query,
+            "rag_trace": append_rag_step(
+                state.get("rag_trace", []),
+                name="input_guardrail",
+                status="blocked",
+                summary="The request was blocked as off-topic.",
+                details={"reason": "off_topic"},
+            ),
         }
 
     return {
         "input_blocked": False,
         "input_block_reason": "",
         "redacted_query": _redact_pii(raw_query),
+        "rag_trace": append_rag_step(
+            state.get("rag_trace", []),
+            name="input_guardrail",
+            status="ok",
+            summary="Input guardrail passed.",
+        ),
     }

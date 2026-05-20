@@ -1,9 +1,11 @@
 import json
 import os
+import time
 from openai import OpenAI
 from src.graph.state import RAGState
 from src.graph.messages import get_message_content, get_message_role
 from src.prompts.rewriter import build_ambiguity_prompt_messages
+from src.telemetry import append_rag_step, merge_token_usage, usage_from_response
 
 CHEAP_MODEL = os.getenv("CHEAP_MODEL", "google/gemini-2.5-flash")
 
@@ -68,6 +70,12 @@ def _default_result(state: RAGState) -> dict:
         "missing_clinical_dimensions": [],
         "clarification_rationale": None,
         "expected_clarification": None,
+        "rag_trace": append_rag_step(
+            state.get("rag_trace", []),
+            name="rewrite",
+            status="empty",
+            summary="Query rewrite fell back to the original question.",
+        ),
     }
 
 
@@ -122,11 +130,13 @@ def rewrite_query(state: RAGState, client: OpenAI | None = None) -> dict:
             history_block=history_block,
             query=state["user_query"],
         )
+        started = time.perf_counter()
         resp = c.chat.completions.create(
             model=CHEAP_MODEL,
             messages=prompt_messages,
             max_tokens=400,
         )
+        duration_ms = (time.perf_counter() - started) * 1000
         raw = _strip_code_fence(resp.choices[0].message.content or "")
         parsed = json.loads(raw)
     except Exception:
@@ -188,6 +198,10 @@ def rewrite_query(state: RAGState, client: OpenAI | None = None) -> dict:
     # Merge with any filters the user already selected via the UI
     ui_filters = state.get("metadata_filters", {})
     merged_filters = {**filters, **ui_filters}
+    usage = usage_from_response(resp, model=CHEAP_MODEL, step="rewrite", duration_ms=duration_ms)
+    summary = f"Rewrite produced intent '{intent}' and route-ready filters."
+    if requires_clarification:
+        summary = "Rewrite determined that clarification is required before retrieval."
 
     return {
         "rewritten_query": rewritten,
@@ -198,4 +212,19 @@ def rewrite_query(state: RAGState, client: OpenAI | None = None) -> dict:
         "missing_clinical_dimensions": missing_dimensions,
         "clarification_rationale": clarification_rationale,
         "expected_clarification": expected_clarification,
+        "token_usage": merge_token_usage(state.get("token_usage", {}), usage),
+        "rag_trace": append_rag_step(
+            state.get("rag_trace", []),
+            name="rewrite",
+            status="ok",
+            summary=summary,
+            details={
+                "rewritten_query": rewritten,
+                "intent": intent,
+                "filters": merged_filters,
+                "requires_clarification": requires_clarification,
+                "missing_clinical_dimensions": missing_dimensions,
+            },
+            duration_ms=duration_ms,
+        ),
     }

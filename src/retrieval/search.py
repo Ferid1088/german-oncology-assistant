@@ -4,6 +4,7 @@ import logging
 import time
 from dataclasses import dataclass
 from pymilvus import MilvusClient
+from src.citations import normalize_page_numbers
 from src.indexer.embedder import embed_texts
 from src.retrieval import bm25 as _bm25_mod
 
@@ -32,6 +33,7 @@ class RetrievedChunk:
     source_filename: str = ""
     contextual_header: str = ""
     reference_ids: list[str] | None = None
+    page_numbers: list[int] | None = None
 
 
 def _safe_json_loads(value, default):
@@ -90,6 +92,11 @@ def _milvus_results_to_chunks(results: list[dict]) -> list[RetrievedChunk]:
             source_filename=e.get("source_filename", ""),
             contextual_header=e.get("contextual_header", ""),
             reference_ids=_safe_json_loads(e.get("reference_ids", "[]"), []),
+            page_numbers=normalize_page_numbers(
+                e.get("page_numbers"),
+                e.get("page_start"),
+                e.get("page_end"),
+            ),
         ))
     return chunks
 
@@ -110,7 +117,7 @@ def hybrid_search(
         "chunk_id", "text", "guideline_id", "section_title", "section_path",
         "page_start", "page_end", "chunk_type", "recommendation_grade",
         "recommendation_id", "evidence_level", "parent_chunk_id", "source_filename", "contextual_header",
-        "reference_ids",
+        "reference_ids", "page_numbers",
     ]
 
     filters = ["is_leaf == true"]

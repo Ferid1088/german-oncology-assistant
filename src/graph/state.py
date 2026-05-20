@@ -36,9 +36,15 @@ class RAGState(TypedDict):
     input_block_reason: str
     output_blocked: bool
     redacted_query: str
+    safety_warning: str | None
+    safety_explanation: str | None
+    safety_title: str | None
 
     # Tool calls (for display)
     tool_calls_log: list[dict]
+    rag_trace: list[dict]
+    token_usage: dict
+    external_search_snippets: list[dict]
 
     # Turn understanding / conversation reuse
     turn_intents: list[str]

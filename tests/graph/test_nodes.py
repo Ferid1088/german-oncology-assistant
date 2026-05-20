@@ -7,6 +7,7 @@ from src.graph.nodes.agent import run_agent
 from src.graph.nodes.answer import generate_answer
 from src.graph.nodes.confidence import check_confidence
 from src.graph.nodes.guardrail_input import apply_input_guardrail
+from src.graph.nodes.guardrail_output import apply_output_guardrail
 import src.api.routes.chat as chat_module
 from src.api.conversation_store import ConversationStore
 
@@ -36,7 +37,13 @@ def _base_state() -> RAGState:
         input_block_reason="",
         output_blocked=False,
         redacted_query="Welche Empfehlung gilt für das Screening?",
+        safety_warning=None,
+        safety_explanation=None,
+        safety_title=None,
         tool_calls_log=[],
+        rag_trace=[],
+        token_usage={"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "cost_usd": 0.0, "currency": "USD", "calls": []},
+        external_search_snippets=[],
         turn_intents=[],
         followup_routing="retrieve",
         prior_answer_professional="",
@@ -199,6 +206,7 @@ def test_generate_answer_memory_followup_rewrites_prior_answer(mocker):
             "contextual_header": "",
             "parent_chunk_id": "",
             "is_opinion": False,
+            "page_numbers": [1],
         }
     ]
 
@@ -258,3 +266,47 @@ def test_input_guardrail_passes_medical_query():
     state = _base_state()
     result = apply_input_guardrail(state)
     assert result["input_blocked"] is False
+
+
+def test_output_guardrail_adds_warning_for_patient_specific_queries():
+    state = _base_state()
+    state["user_query"] = "Welche adjuvante Therapie gilt für meine Patientin mit HER2-positivem Mammakarzinom?"
+    state["retrieved_chunks"] = [{"text": "Allgemeine Empfehlung", "citation": "MAMMA 1", "section_title": "Therapie"}]
+    state["answer_professional"] = "Allgemeine Leitlinienempfehlung [1]."
+
+    result = apply_output_guardrail(state)
+
+    assert result["output_blocked"] is False
+    assert result["safety_warning"] is not None
+    assert "general guideline" in result["safety_warning"].lower()
+
+
+def test_output_guardrail_blocks_unsupported_dosage_requests():
+    state = _base_state()
+    state["user_query"] = "Welche Dosis in mg soll ich bei dieser Patientin geben?"
+    state["retrieved_chunks"] = [{"text": "Therapieempfehlung ohne Dosisangabe", "citation": "MAMMA 2", "section_title": "Therapie"}]
+    state["answer_professional"] = "Antwort mit möglicher Dosis."
+
+    result = apply_output_guardrail(state)
+
+    assert result["output_blocked"] is True
+    assert result["safety_warning"] is not None
+    assert result["citations"] == []
+
+
+def test_output_guardrail_allows_dosage_when_directly_grounded():
+    state = _base_state()
+    state["user_query"] = "Welche Dosis ist in der Leitlinie genannt?"
+    state["retrieved_chunks"] = [
+        {
+            "text": "Empfohlen werden 80 mg/m² alle 3 Wochen im dargestellten Schema.",
+            "citation": "MAMMA 3",
+            "section_title": "Dosierung",
+        }
+    ]
+    state["answer_professional"] = "Die Leitlinie nennt 80 mg/m² [1]."
+
+    result = apply_output_guardrail(state)
+
+    assert result["output_blocked"] is False
+    assert result["safety_warning"] is None

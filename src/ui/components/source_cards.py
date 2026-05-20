@@ -1,4 +1,5 @@
 import streamlit as st
+from src.citations import format_page_reference
 
 
 def render_source_cards(citations: list[dict]) -> None:
@@ -40,10 +41,8 @@ def render_source_cards(citations: list[dict]) -> None:
                     path_parts = c["section_path"]
                     if isinstance(path_parts, list) and path_parts:
                         st.caption(f"📍 {' › '.join(str(p) for p in path_parts if p)}")
-                if c.get("page_start"):
-                    page = f"Seite {c['page_start']}"
-                    if c.get("page_end") and c["page_end"] != c["page_start"]:
-                        page += f"–{c['page_end']}"
+                page = format_page_reference(c.get("page_numbers"), c.get("page_start"), c.get("page_end"))
+                if page:
                     st.caption(f"🔖 {page}")
                 if c.get("recommendation_id"):
                     extra = f"📋 Empfehlung {c['recommendation_id']}"
@@ -69,6 +68,15 @@ def render_source_cards(citations: list[dict]) -> None:
 def render_tool_calls(tool_calls: list[dict]) -> None:
     if not tool_calls:
         return
-    with st.expander(f"Tool-Aufrufe ({len(tool_calls)})"):
-        for tc in tool_calls:
+
+    st.caption(f"{len(tool_calls)} tool call(s)")
+    for tc in tool_calls:
+        title = tc.get("tool", "unknown")
+        summary = tc.get("summary") or "Tool executed."
+        with st.expander(title, expanded=False):
+            st.caption(summary)
+            preview = tc.get("preview", [])
+            if isinstance(preview, list):
+                for item in preview:
+                    st.markdown(f"- {item}")
             st.json(tc)

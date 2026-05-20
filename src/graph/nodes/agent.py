@@ -1,5 +1,6 @@
 import os
 import json
+import time
 from openai import OpenAI
 from src.graph.state import RAGState
 from src.retrieval.postprocess import top_unique_result_dicts
@@ -11,6 +12,7 @@ from src.tools.calculate_bmi import calculate_bmi_tool
 from src.tools.pubmed_search import pubmed_search_tool
 from src.graph.permissions import is_source_allowed, is_tool_allowed
 from src.prompts.agent import AGENT_SYSTEM
+from src.telemetry import append_rag_step, merge_token_usage, summarize_tool_result, usage_from_response
 
 GEN_MODEL = os.getenv("GENERATION_MODEL", "openai/gpt-4o")
 
@@ -117,37 +119,34 @@ def _dispatch_tool(name: str, args: dict) -> str:
     raise RuntimeError("_dispatch_tool(state-aware) should be used instead")
 
 
-def _dispatch_tool_with_state(state: RAGState, name: str, args: dict) -> str:
+def _dispatch_tool_with_state(state: RAGState, name: str, args: dict) -> tuple[str, object]:
     if not is_tool_allowed(state, name):
-        return json.dumps(
-            {"error": f"Tool '{name}' ist für die Rolle '{state.get('user_role', 'user')}' nicht erlaubt."},
-            ensure_ascii=False,
-        )
+        result = {"error": f"Tool '{name}' ist für die Rolle '{state.get('user_role', 'user')}' nicht erlaubt."}
+        return json.dumps(result, ensure_ascii=False), result
 
     if name == "search_guidelines":
         results = search_guidelines_tool(**args)
-        return json.dumps(results, ensure_ascii=False)
+        return json.dumps(results, ensure_ascii=False), results
     if name == "lookup_empfehlung":
         result = lookup_empfehlung_tool(**args)
-        return json.dumps(result, ensure_ascii=False)
+        return json.dumps(result, ensure_ascii=False), result
     if name == "compare_guidelines":
         result = compare_guidelines_tool(**args)
-        return json.dumps(result, ensure_ascii=False)
+        return json.dumps(result, ensure_ascii=False), result
     if name == "drug_class_lookup":
         result = drug_class_lookup_tool(**args)
-        return json.dumps(result, ensure_ascii=False)
+        return json.dumps(result, ensure_ascii=False), result
     if name == "calculate_bmi":
         result = calculate_bmi_tool(**args)
-        return json.dumps(result, ensure_ascii=False)
+        return json.dumps(result, ensure_ascii=False), result
     if name == "pubmed_search":
         if not is_source_allowed(state, "pubmed"):
-            return json.dumps(
-                {"error": "Externe Quellen (PubMed) sind für diese Anfrage nicht erlaubt."},
-                ensure_ascii=False,
-            )
+            result = {"error": "Externe Quellen (PubMed) sind für diese Anfrage nicht erlaubt."}
+            return json.dumps(result, ensure_ascii=False), result
         result = pubmed_search_tool(**args)
-        return json.dumps(result, ensure_ascii=False)
-    return json.dumps({"error": f"Unknown tool: {name}"})
+        return json.dumps(result, ensure_ascii=False), result
+    result = {"error": f"Unknown tool: {name}"}
+    return json.dumps(result, ensure_ascii=False), result
 
 
 _FORCE_SEARCH = {"type": "function", "function": {"name": "search_guidelines"}}
@@ -159,6 +158,12 @@ def run_agent(state: RAGState, client: OpenAI | None = None) -> dict:
         return {
             "retrieved_chunks": state.get("prior_retrieved_chunks", []),
             "tool_calls_log": state.get("tool_calls_log", []),
+            "rag_trace": append_rag_step(
+                state.get("rag_trace", []),
+                name="agent",
+                status="skipped",
+                summary="Agent retrieval was skipped because the turn reused prior conversation memory.",
+            ),
         }
 
     c = client or _client()
@@ -169,11 +174,13 @@ def run_agent(state: RAGState, client: OpenAI | None = None) -> dict:
 
     all_chunks: list[dict] = []
     tool_calls_log: list[dict] = []
+    token_usage = state.get("token_usage", {})
 
     searched_queries: set[str] = set()
 
     for i in range(2):  # max iterations
         tool_choice = _FORCE_SEARCH if i == 0 else "auto"
+        started = time.perf_counter()
         resp = c.chat.completions.create(
             model=GEN_MODEL,
             messages=messages,
@@ -181,6 +188,8 @@ def run_agent(state: RAGState, client: OpenAI | None = None) -> dict:
             tool_choice=tool_choice,
             max_tokens=1500,
         )
+        duration_ms = (time.perf_counter() - started) * 1000
+        token_usage = merge_token_usage(token_usage, usage_from_response(resp, model=GEN_MODEL, step=f"agent_iteration_{i + 1}", duration_ms=duration_ms))
         msg = resp.choices[0].message
 
         if not msg.tool_calls:
@@ -203,18 +212,38 @@ def run_agent(state: RAGState, client: OpenAI | None = None) -> dict:
                 searched_queries.add(q_key)
                 made_new_search = True
 
-            result_str = _dispatch_tool_with_state(state, tc.function.name, args)
-            tool_calls_log.append({"tool": tc.function.name, "args": args})
+            result_str, parsed_result = _dispatch_tool_with_state(state, tc.function.name, args)
+            summary, preview, count, status = summarize_tool_result(tc.function.name, parsed_result)
+            tool_calls_log.append(
+                {
+                    "tool": tc.function.name,
+                    "args": args,
+                    "summary": summary,
+                    "preview": preview,
+                    "result_count": count,
+                    "status": status,
+                }
+            )
             messages.append({"role": "tool", "tool_call_id": tc.id, "content": result_str})
 
             if tc.function.name == "search_guidelines":
-                all_chunks.extend(json.loads(result_str))
+                if isinstance(parsed_result, list):
+                    all_chunks.extend(parsed_result)
 
         # No new searches were needed on this iteration — we're done
         if not made_new_search and i > 0:
             break
 
+    top_chunks = top_unique_result_dicts(all_chunks, top_k=10)
     return {
-        "retrieved_chunks": top_unique_result_dicts(all_chunks, top_k=10),
+        "retrieved_chunks": top_chunks,
         "tool_calls_log": tool_calls_log,
+        "token_usage": token_usage,
+        "rag_trace": append_rag_step(
+            state.get("rag_trace", []),
+            name="agent",
+            status="ok" if top_chunks else "empty",
+            summary=f"Agent completed retrieval with {len(top_chunks)} unique chunk(s).",
+            details={"tool_calls": len(tool_calls_log), "retrieved_chunks": len(top_chunks)},
+        ),
     }

@@ -1,3 +1,4 @@
+from src.citations import format_page_reference
 from src.retrieval.search import hybrid_search
 from src.retrieval.reranker import rerank
 from src.retrieval.expander import expand_to_parents
@@ -35,6 +36,7 @@ def search_guidelines_tool(
             "section_path": c.section_path,
             "page_start": c.page_start,
             "page_end": c.page_end,
+            "page_numbers": c.page_numbers or [],
             "chunk_type": c.chunk_type,
             "recommendation_grade": c.recommendation_grade,
             "recommendation_id": c.recommendation_id,
@@ -43,8 +45,8 @@ def search_guidelines_tool(
             "contextual_header": c.contextual_header,
             "parent_chunk_id": c.parent_chunk_id,
             "reference_ids": c.reference_ids or [],
-            "citation": f"{c.guideline_id.upper()} § {'.'.join(c.section_path)} (S. {c.page_start}–{c.page_end})"
-            if c.page_start
+            "citation": f"{c.guideline_id.upper()} § {'.'.join(c.section_path)} ({format_page_reference(c.page_numbers, c.page_start, c.page_end, short=True)})"
+            if format_page_reference(c.page_numbers, c.page_start, c.page_end, short=True)
             else c.guideline_id.upper(),
         }
         for i, c in enumerate(expanded)

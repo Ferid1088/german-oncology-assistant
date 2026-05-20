@@ -70,6 +70,9 @@ class ConversationStore:
                     citations TEXT NOT NULL DEFAULT '[]',
                     retrieved_chunks TEXT NOT NULL DEFAULT '[]',
                     tool_calls TEXT NOT NULL DEFAULT '[]',
+                    rag_trace TEXT NOT NULL DEFAULT '[]',
+                    token_usage TEXT NOT NULL DEFAULT '{}',
+                    external_search_snippets TEXT NOT NULL DEFAULT '[]',
                     created_at TEXT NOT NULL,
                     FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
                 );
@@ -78,6 +81,13 @@ class ConversationStore:
                 ON messages (conversation_id, created_at);
                 """
             )
+            message_columns = {row[1] for row in conn.execute("PRAGMA table_info(messages)").fetchall()}
+            if "rag_trace" not in message_columns:
+                conn.execute("ALTER TABLE messages ADD COLUMN rag_trace TEXT NOT NULL DEFAULT '[]'")
+            if "token_usage" not in message_columns:
+                conn.execute("ALTER TABLE messages ADD COLUMN token_usage TEXT NOT NULL DEFAULT '{}' ")
+            if "external_search_snippets" not in message_columns:
+                conn.execute("ALTER TABLE messages ADD COLUMN external_search_snippets TEXT NOT NULL DEFAULT '[]'")
 
     def _conversation_row(self, row: sqlite3.Row) -> dict:
         return {
@@ -91,7 +101,7 @@ class ConversationStore:
         return conn.execute(
             """
             SELECT id, role, content, answer_professional, answer_plain, citations,
-                   retrieved_chunks, tool_calls, created_at
+                   retrieved_chunks, tool_calls, rag_trace, token_usage, external_search_snippets, created_at
             FROM messages
             WHERE conversation_id = ?
             ORDER BY created_at ASC, id ASC
@@ -109,6 +119,9 @@ class ConversationStore:
             "citations": _from_json(row["citations"], []),
             "retrieved_chunks": _from_json(row["retrieved_chunks"], []),
             "tool_calls": _from_json(row["tool_calls"], []),
+            "rag_trace": _from_json(row["rag_trace"], []),
+            "token_usage": _from_json(row["token_usage"], {}),
+            "external_search_snippets": _from_json(row["external_search_snippets"], []),
             "created_at": row["created_at"],
         }
 
@@ -152,6 +165,23 @@ class ConversationStore:
                 for message in self._list_message_rows(conn, conversation_id)
             ]
             return conversation
+
+    def export_conversation(self, conversation_id: str) -> dict | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT id, title, created_at, updated_at
+                FROM conversations
+                WHERE id = ? AND deleted_at IS NULL
+                """,
+                (conversation_id,),
+            ).fetchone()
+            if row is None:
+                return None
+
+            payload = self._conversation_row(row)
+            payload["messages"] = [self._message_dict(message) for message in self._list_message_rows(conn, conversation_id)]
+            return payload
 
     def create_conversation(self, conversation_id: str | None = None, title: str = "Neue Konversation") -> dict:
         conversation_id = conversation_id or str(uuid.uuid4())
@@ -269,8 +299,8 @@ class ConversationStore:
                 """
                 INSERT INTO messages (
                     id, conversation_id, role, content, answer_professional, answer_plain,
-                    citations, retrieved_chunks, tool_calls, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    citations, retrieved_chunks, tool_calls, rag_trace, token_usage, external_search_snippets, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (
@@ -282,6 +312,9 @@ class ConversationStore:
                         "",
                         "[]",
                         "[]",
+                        "[]",
+                        "[]",
+                        "{}",
                         "[]",
                         user_created_at,
                     ),
@@ -295,6 +328,9 @@ class ConversationStore:
                         _to_json(final_state.get("citations", [])),
                         _to_json(final_state.get("retrieved_chunks", [])),
                         _to_json(final_state.get("tool_calls_log", [])),
+                        _to_json(final_state.get("rag_trace", [])),
+                        json.dumps(final_state.get("token_usage", {}), ensure_ascii=False),
+                        _to_json(final_state.get("external_search_snippets", [])),
                         assistant_created_at,
                     ),
                 ],
