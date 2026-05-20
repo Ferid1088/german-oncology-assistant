@@ -49,6 +49,8 @@ def _synthesize(llm: OpenAI, query: str, extracted: str, valid_numbers: str) -> 
 def generate_answer(state: RAGState, client: OpenAI | None = None) -> dict:
     llm = client or _client()
     chunks = state.get("retrieved_chunks", [])
+    if not chunks and state.get("followup_routing") == "memory":
+        chunks = state.get("prior_retrieved_chunks", [])
 
     all_citations = [
         {
@@ -76,6 +78,17 @@ def generate_answer(state: RAGState, client: OpenAI | None = None) -> dict:
         f"[{i + 1}] {ch['citation']}: {ch['text'][:800]}"
         for i, ch in enumerate(chunks[:5])
     )
+
+    if state.get("followup_routing") == "memory":
+        prior_answer = state.get("prior_answer_professional", "")
+        prior_plain = state.get("prior_answer_plain", "")
+        if prior_answer or prior_plain:
+            conversation_context = "\n\n".join(filter(None, [
+                f"Vorherige fachliche Antwort: {prior_answer}",
+                f"Vorherige einfache Antwort: {prior_plain}",
+                f"Vorherige Turn-Intents: {', '.join(state.get('turn_intents', []))}",
+            ]))
+            context = "\n\n".join(filter(None, [conversation_context, context]))
 
     # Stage 1: extract verbatim sentences from chunks
     extracted = _extract(llm, state["user_query"], context)

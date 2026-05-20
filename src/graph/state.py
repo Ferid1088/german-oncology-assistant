@@ -36,5 +36,13 @@ class RAGState(TypedDict):
     # Tool calls (for display)
     tool_calls_log: list[dict]
 
+    # Turn understanding / conversation reuse
+    turn_intents: list[str]
+    followup_routing: str                  # memory | retrieve
+    prior_answer_professional: str
+    prior_answer_plain: str
+    prior_citations: list[dict]
+    prior_retrieved_chunks: list[dict]
+
     # Conversation memory
     messages: Annotated[list, add_messages]

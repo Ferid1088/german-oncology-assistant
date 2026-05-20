@@ -153,7 +153,13 @@ _FORCE_SEARCH = {"type": "function", "function": {"name": "search_guidelines"}}
 
 
 def run_agent(state: RAGState, client: OpenAI | None = None) -> dict:
-    """Tool-calling agent loop. First iteration always searches; second is optional."""
+    """Tool-calling agent loop. Retrieval can be skipped for memory-routed follow-ups."""
+    if state.get("followup_routing") == "memory":
+        return {
+            "retrieved_chunks": state.get("prior_retrieved_chunks", []),
+            "tool_calls_log": state.get("tool_calls_log", []),
+        }
+
     c = client or _client()
     messages = [
         {"role": "system", "content": AGENT_SYSTEM},
@@ -166,7 +172,6 @@ def run_agent(state: RAGState, client: OpenAI | None = None) -> dict:
     searched_queries: set[str] = set()
 
     for i in range(2):  # max iterations
-        # Force a DB search on the first call; let the model decide on the second
         tool_choice = _FORCE_SEARCH if i == 0 else "auto"
         resp = c.chat.completions.create(
             model=GEN_MODEL,

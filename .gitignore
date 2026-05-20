@@ -28,4 +28,5 @@ milvus.db/
 # IDE / local tool settings
 .claude/
 
-experiments/*.pkl
+experiments/
+bm25_index.pkl

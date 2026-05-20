@@ -2,6 +2,7 @@ import json
 import os
 from openai import OpenAI
 from src.graph.state import RAGState
+from src.graph.messages import get_message_content, get_message_role
 from src.prompts.rewriter import ANALYZE_QUERY
 
 CHEAP_MODEL = os.getenv("CHEAP_MODEL", "google/gemini-2.5-flash")
@@ -43,7 +44,11 @@ def rewrite_query(state: RAGState, client: OpenAI | None = None) -> dict:
     history = state.get("messages", [])
     history_block = ""
     if history:
-        lines = "\n".join(f"{m['role']}: {m['content']}" for m in history[-4:])
+        lines = "\n".join(
+            f"{get_message_role(message)}: {get_message_content(message)}"
+            for message in history[-4:]
+            if get_message_content(message)
+        )
         history_block = f"Gesprächsverlauf:\n{lines}\n\n"
 
     prompt = ANALYZE_QUERY.format(history_block=history_block, query=state["user_query"])

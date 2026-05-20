@@ -2,6 +2,7 @@ from langgraph.graph import StateGraph, END
 from src.graph.state import RAGState
 from src.graph.nodes.guardrail_input import apply_input_guardrail
 from src.graph.nodes.rewriter import rewrite_query
+from src.graph.nodes.turn_router import route_turn
 from src.graph.nodes.agent import run_agent
 from src.graph.nodes.confidence import check_confidence, needs_escalation
 from src.graph.nodes.answer import generate_answer
@@ -55,12 +56,17 @@ def _route_after_guardrail(state: RAGState) -> str:
     return "blocked" if state["input_blocked"] else "rewrite"
 
 
+def _route_after_rewrite(state: RAGState) -> str:
+    return "turn_router"
+
+
 def build_graph(checkpointer=None):
     builder = StateGraph(RAGState)
 
     builder.add_node("guardrail_input", apply_input_guardrail)
     builder.add_node("blocked", _blocked_response)
     builder.add_node("rewrite", rewrite_query)
+    builder.add_node("turn_router", route_turn)
     builder.add_node("agent", run_agent)
     builder.add_node("confidence", check_confidence)
     builder.add_node("escalate", _multi_query_escalation)
@@ -73,7 +79,10 @@ def build_graph(checkpointer=None):
         "rewrite": "rewrite",
     })
     builder.add_edge("blocked", END)
-    builder.add_edge("rewrite", "agent")
+    builder.add_conditional_edges("rewrite", _route_after_rewrite, {
+        "turn_router": "turn_router",
+    })
+    builder.add_edge("turn_router", "agent")
     builder.add_edge("agent", "confidence")
     builder.add_conditional_edges("confidence", needs_escalation, {
         "escalate": "escalate",
