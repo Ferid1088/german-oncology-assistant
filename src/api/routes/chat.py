@@ -1,12 +1,12 @@
 import json
 import os
 import logging
-from threading import Lock
 from fastapi import APIRouter, Depends
 from fastapi.responses import Response
 from pydantic import BaseModel
 from langchain_core.messages import AIMessage, HumanMessage
 from src.api.auth import verify_api_key
+from src.api.conversation_store import get_conversation_store
 from src.graph.graph import build_graph
 from src.graph.checkpointing import build_checkpointer
 from src.graph.state import RAGState
@@ -14,8 +14,6 @@ from src.graph.state import RAGState
 router = APIRouter()
 _graph = None
 log = logging.getLogger(__name__)
-_memory_lock = Lock()
-_session_memory: dict[str, dict] = {}
 DEFAULT_USER_ROLE = os.getenv("DEFAULT_USER_ROLE", "user")
 DEFAULT_ALLOWED_SOURCES = ["guidelines"]
 
@@ -41,41 +39,19 @@ def _supports_checkpointing(graph) -> bool:
 
 
 def _load_session_memory(session_id: str) -> dict:
-    with _memory_lock:
-        memory = _session_memory.get(session_id)
-        if not memory:
-            return {
-                "messages": [],
-                "prior_answer_professional": "",
-                "prior_answer_plain": "",
-                "prior_citations": [],
-                "prior_retrieved_chunks": [],
-            }
-        return {
-            "messages": list(memory.get("messages", [])),
-            "prior_answer_professional": memory.get("prior_answer_professional", ""),
-            "prior_answer_plain": memory.get("prior_answer_plain", ""),
-            "prior_citations": list(memory.get("prior_citations", [])),
-            "prior_retrieved_chunks": list(memory.get("prior_retrieved_chunks", [])),
-        }
+    return get_conversation_store().load_session_memory(session_id)
 
 
 def _save_session_memory(session_id: str, final_state: dict, user_query: str) -> None:
-    with _memory_lock:
-        previous = _session_memory.get(session_id, {})
-        messages = list(previous.get("messages", []))
-        messages.append(HumanMessage(content=user_query))
-        messages.append(AIMessage(content=_combine_answer_parts(
+    get_conversation_store().append_turn(
+        conversation_id=session_id,
+        user_query=user_query,
+        final_state=final_state,
+        combined_answer=_combine_answer_parts(
             final_state.get("answer_professional", ""),
             final_state.get("answer_plain", ""),
-        )))
-        _session_memory[session_id] = {
-            "messages": messages[-12:],
-            "prior_answer_professional": final_state.get("answer_professional", ""),
-            "prior_answer_plain": final_state.get("answer_plain", ""),
-            "prior_citations": list(final_state.get("citations", [])),
-            "prior_retrieved_chunks": list(final_state.get("retrieved_chunks", [])),
-        }
+        ),
+    )
 
 
 class ChatRequest(BaseModel):
@@ -91,15 +67,10 @@ def chat(request: ChatRequest):
     try:
         graph = get_graph()
         use_checkpoint = _supports_checkpointing(graph)
-        session_memory = _load_session_memory(request.session_id) if not use_checkpoint else {
-            "messages": [HumanMessage(content=request.query)],
-            "prior_answer_professional": "",
-            "prior_answer_plain": "",
-            "prior_citations": [],
-            "prior_retrieved_chunks": [],
-        }
-        input_messages = list(session_memory.get("messages", []))
-        input_messages.append(HumanMessage(content=request.query))
+        session_memory = _load_session_memory(request.session_id)
+        input_messages = [HumanMessage(content=request.query)] if use_checkpoint else list(session_memory.get("messages", []))
+        if not use_checkpoint:
+            input_messages.append(HumanMessage(content=request.query))
         initial_state = RAGState(
             user_query=request.query,
             session_id=request.session_id,
@@ -149,8 +120,9 @@ def chat(request: ChatRequest):
                     "prior_retrieved_chunks": final_state.get("retrieved_chunks", []),
                 },
             )
+            _save_session_memory(request.session_id, final_state, request.query)
         else:
-            log.info("No checkpointer configured; running chat request without persisted conversation memory.")
+            log.info("No LangGraph checkpointer configured; using durable conversation store for chat history.")
             final_state = graph.invoke(initial_state)
             _save_session_memory(request.session_id, final_state, request.query)
 

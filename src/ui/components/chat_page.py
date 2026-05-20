@@ -197,8 +197,20 @@ def _combine_answer_parts(answer_professional: str, answer_plain: str) -> str:
     return "\n\n".join(parts).strip()
 
 
-def _date_group(dt: datetime.datetime) -> str:
-    delta = (datetime.date.today() - dt.date()).days
+def _as_datetime(value) -> datetime.datetime:
+    if isinstance(value, datetime.datetime):
+        return value
+    if isinstance(value, str) and value:
+        try:
+            return datetime.datetime.fromisoformat(value)
+        except ValueError:
+            pass
+    return datetime.datetime.now(datetime.timezone.utc)
+
+
+def _date_group(dt: datetime.datetime | str) -> str:
+    dt_value = _as_datetime(dt)
+    delta = (datetime.date.today() - dt_value.date()).days
     if delta == 0:
         return "Heute"
     if delta == 1:
@@ -210,31 +222,101 @@ def _date_group(dt: datetime.datetime) -> str:
     return "Älter"
 
 
-def _new_conversation() -> str:
+def _api_headers(api_key: str) -> dict[str, str]:
+    return {"X-API-Key": api_key}
+
+
+def _load_conversations(api_url: str, api_key: str) -> dict[str, dict]:
+    response = httpx.get(
+        f"{api_url}/conversations",
+        headers=_api_headers(api_key),
+        timeout=30,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    conversations = payload.get("conversations", [])
+    return {conversation["session_id"]: conversation for conversation in conversations}
+
+
+def _show_backend_unavailable(api_url: str, error: Exception) -> None:
+    st.title("Onkologie Leitlinien-Assistent")
+    st.error(
+        "Die UI konnte den Backend-Service noch nicht erreichen. "
+        "Bitte warten Sie einen Moment und versuchen Sie es erneut."
+    )
+    st.caption(f"Backend URL: {api_url}")
+    st.caption(f"Fehler: {error}")
+    if st.button("Erneut versuchen", use_container_width=True):
+        st.rerun()
+
+
+def _create_conversation(api_url: str, api_key: str) -> str:
     new_id = str(uuid.uuid4())
-    st.session_state.conversations[new_id] = {
-        "session_id": new_id,
-        "title": "Neue Konversation",
-        "messages": [],
-        "created_at": datetime.datetime.now(),
-    }
+    response = httpx.post(
+        f"{api_url}/conversations",
+        json={"session_id": new_id, "title": "Neue Konversation"},
+        headers=_api_headers(api_key),
+        timeout=30,
+    )
+    response.raise_for_status()
+    st.session_state.conversations[new_id] = response.json()
     return new_id
 
 
-def _delete_conversation(cid: str) -> None:
+def _delete_conversation(cid: str, api_url: str, api_key: str) -> None:
+    response = httpx.delete(
+        f"{api_url}/conversations/{cid}",
+        headers=_api_headers(api_key),
+        timeout=30,
+    )
+    response.raise_for_status()
     del st.session_state.conversations[cid]
     if st.session_state.active_id == cid:
         remaining = list(st.session_state.conversations.keys())
-        st.session_state.active_id = remaining[-1] if remaining else _new_conversation()
+        st.session_state.active_id = remaining[0] if remaining else None
 
 
-def _init_state() -> None:
+def _sync_conversations(api_url: str, api_key: str) -> bool:
+    try:
+        conversations = _load_conversations(api_url, api_key)
+    except httpx.HTTPError as exc:
+        st.session_state.backend_available = False
+        st.session_state.backend_error = str(exc)
+        return False
+
+    st.session_state.backend_available = True
+    st.session_state.backend_error = ""
+    st.session_state.conversations = conversations
+
+    if not conversations:
+        st.session_state.active_id = _create_conversation(api_url, api_key)
+        return True
+
+    if st.session_state.get("active_id") not in conversations:
+        sorted_ids = [
+            cid for cid, _conv in sorted(
+                conversations.items(),
+                key=lambda item: _as_datetime(item[1].get("updated_at") or item[1].get("created_at")),
+                reverse=True,
+            )
+        ]
+        st.session_state.active_id = sorted_ids[0]
+    return True
+
+
+def _init_state(api_url: str, api_key: str) -> bool:
     if "conversations" not in st.session_state:
         st.session_state.conversations = {}
-        st.session_state.active_id = _new_conversation()
+    if "active_id" not in st.session_state:
+        st.session_state.active_id = None
+    if "backend_available" not in st.session_state:
+        st.session_state.backend_available = True
+    if "backend_error" not in st.session_state:
+        st.session_state.backend_error = ""
+    return _sync_conversations(api_url, api_key)
 
 
-def _render_sidebar() -> dict:
+def _render_sidebar(api_url: str, api_key: str) -> dict:
     st.markdown(_CSS, unsafe_allow_html=True)
 
     with st.sidebar:
@@ -245,17 +327,21 @@ def _render_sidebar() -> dict:
 
         # ── New Chat ──────────────────────────────────────────
         if st.button("✏️  Neuer Chat", use_container_width=True):
-            st.session_state.active_id = _new_conversation()
+            st.session_state.active_id = _create_conversation(api_url, api_key)
             st.rerun()
 
         st.divider()
 
         # ── Conversation history ───────────────────────────────
-        convs = list(reversed(list(st.session_state.conversations.items())))
+        convs = sorted(
+            st.session_state.conversations.items(),
+            key=lambda item: _as_datetime(item[1].get("updated_at") or item[1].get("created_at")),
+            reverse=True,
+        )
         current_group = None
 
         for cid, conv in convs:
-            group = _date_group(conv["created_at"])
+            group = _date_group(conv.get("updated_at") or conv.get("created_at"))
             if group != current_group:
                 st.markdown(
                     f'<p style="{_DATE_LABEL_STYLE}">{group}</p>',
@@ -280,15 +366,18 @@ def _render_sidebar() -> dict:
             with col_dots:
                 with st.popover("⋯", use_container_width=True):
                     if st.button("🗑 Löschen", key=f"del_{cid}", use_container_width=True):
-                        _delete_conversation(cid)
+                        _delete_conversation(cid, api_url, api_key)
                         st.rerun()
 
     return filters
 
 
 def render_chat_page(api_url: str, api_key: str) -> None:
-    _init_state()
-    filters = _render_sidebar()
+    if not _init_state(api_url, api_key):
+        _show_backend_unavailable(api_url, st.session_state.get("backend_error", "Unbekannter Fehler"))
+        return
+
+    filters = _render_sidebar(api_url, api_key)
 
     conv = st.session_state.conversations[st.session_state.active_id]
 

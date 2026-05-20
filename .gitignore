@@ -30,3 +30,4 @@ milvus.db/
 
 experiments/
 bm25_index.pkl
+data/*.db

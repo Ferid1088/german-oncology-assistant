@@ -4,8 +4,11 @@ Milvus runs in-process via milvus-lite (./milvus.db) — no external server need
 """
 import os
 import sys
+import time
 import signal
 import subprocess
+import urllib.request
+import urllib.error
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
@@ -17,6 +20,20 @@ processes = []
 # Pass an empty value so the ORM skips validation; code falls back to ./milvus.db.
 api_env = os.environ.copy()
 api_env["MILVUS_URI"] = ""
+
+
+def wait_for_api(url: str, timeout_seconds: int = 30) -> None:
+    deadline = time.time() + timeout_seconds
+    last_error = None
+    while time.time() < deadline:
+        try:
+            with urllib.request.urlopen(url, timeout=2) as response:
+                if 200 <= response.status < 300:
+                    return
+        except (urllib.error.URLError, TimeoutError, ConnectionError) as exc:
+            last_error = exc
+            time.sleep(0.5)
+    raise RuntimeError(f"API did not become ready at {url}: {last_error}")
 
 
 def shutdown(signum, frame):
@@ -34,7 +51,7 @@ for _port in (8000, 8501):
     subprocess.run(f"lsof -ti :{_port} | xargs kill -9", shell=True,
                    capture_output=True)
 
-import time; time.sleep(1)
+time.sleep(1)
 
 # 1 — FastAPI (milvus-lite starts in-process on first MilvusClient call)
 print("Starting API ...")
@@ -44,6 +61,9 @@ api = subprocess.Popen(
     env=api_env,
 )
 processes.append(api)
+
+print("Waiting for API health check ...")
+wait_for_api("http://localhost:8000/health")
 
 # 2 — Streamlit
 print("Starting UI ...")
