@@ -12,10 +12,14 @@ class RAGState(TypedDict):
     rewritten_query: str
     metadata_filters: dict[str, str]    # guideline_id, grade, chunk_type
     intent: str                          # factual | recommendation | comparison | external
+    query_decomposition: list[str]
+    user_role: str
+    allowed_sources: list[str]
 
     # Retrieval
     retrieved_chunks: list[dict]
     confidence: float                    # 0.0–1.0 from reranker scores
+    escalation_reason: str
 
     # Generation
     answer_professional: str
@@ -27,6 +31,7 @@ class RAGState(TypedDict):
     input_blocked: bool
     input_block_reason: str
     output_blocked: bool
+    redacted_query: str
 
     # Tool calls (for display)
     tool_calls_log: list[dict]

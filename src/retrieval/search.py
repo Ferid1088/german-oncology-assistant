@@ -31,6 +31,18 @@ class RetrievedChunk:
     parent_chunk_id: str = ""
     source_filename: str = ""
     contextual_header: str = ""
+    reference_ids: list[str] | None = None
+
+
+def _safe_json_loads(value, default):
+    if value in (None, ""):
+        return default
+    if isinstance(value, (list, dict)):
+        return value
+    try:
+        return json.loads(value)
+    except (TypeError, json.JSONDecodeError):
+        return default
 
 
 def rrf_fuse(
@@ -67,7 +79,7 @@ def _milvus_results_to_chunks(results: list[dict]) -> list[RetrievedChunk]:
             score=r.get("distance", 0.0),
             guideline_id=e.get("guideline_id", ""),
             section_title=e.get("section_title", ""),
-            section_path=json.loads(e.get("section_path", "[]")),
+            section_path=_safe_json_loads(e.get("section_path", "[]"), []),
             page_start=e.get("page_start"),
             page_end=e.get("page_end"),
             chunk_type=e.get("chunk_type", ""),
@@ -77,6 +89,7 @@ def _milvus_results_to_chunks(results: list[dict]) -> list[RetrievedChunk]:
             parent_chunk_id=e.get("parent_chunk_id", ""),
             source_filename=e.get("source_filename", ""),
             contextual_header=e.get("contextual_header", ""),
+            reference_ids=_safe_json_loads(e.get("reference_ids", "[]"), []),
         ))
     return chunks
 
@@ -97,6 +110,7 @@ def hybrid_search(
         "chunk_id", "text", "guideline_id", "section_title", "section_path",
         "page_start", "page_end", "chunk_type", "recommendation_grade",
         "recommendation_id", "evidence_level", "parent_chunk_id", "source_filename", "contextual_header",
+        "reference_ids",
     ]
 
     filters = ["is_leaf == true"]

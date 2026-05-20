@@ -25,6 +25,7 @@ def search_guidelines_tool(
     return [
         {
             "chunk_id": c.chunk_id,
+            "citation_label": f"[{i + 1}]",
             "text": c.text,
             "score": round(c.score, 4),
             "guideline_id": c.guideline_id,
@@ -37,9 +38,12 @@ def search_guidelines_tool(
             "recommendation_id": c.recommendation_id,
             "evidence_level": c.evidence_level,
             "source_filename": c.source_filename,
+            "contextual_header": c.contextual_header,
+            "parent_chunk_id": c.parent_chunk_id,
+            "reference_ids": c.reference_ids or [],
             "citation": f"{c.guideline_id.upper()} § {'.'.join(c.section_path)} (S. {c.page_start}–{c.page_end})"
             if c.page_start
             else c.guideline_id.upper(),
         }
-        for c in expanded
+        for i, c in enumerate(expanded)
     ]

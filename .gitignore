@@ -28,4 +28,4 @@ milvus.db/
 # IDE / local tool settings
 .claude/
 
-experiments/
+experiments/*.pkl

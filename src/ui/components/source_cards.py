@@ -45,6 +45,23 @@ def render_source_cards(citations: list[dict]) -> None:
                     if c.get("page_end") and c["page_end"] != c["page_start"]:
                         page += f"–{c['page_end']}"
                     st.caption(f"🔖 {page}")
+                if c.get("recommendation_id"):
+                    extra = f"📋 Empfehlung {c['recommendation_id']}"
+                    if c.get("recommendation_grade"):
+                        extra += f" · Grad {c['recommendation_grade']}"
+                    if c.get("evidence_level"):
+                        extra += f" · LoE {c['evidence_level']}"
+                    st.caption(extra)
+                if c.get("reference_ids"):
+                    refs = c["reference_ids"]
+                    if isinstance(refs, list) and refs:
+                        st.caption(f"📚 Referenzen: {', '.join(str(r) for r in refs)}")
+
+            if c.get("contextual_header"):
+                st.caption(f"🧭 {c['contextual_header']}")
+
+            if c.get("citation"):
+                st.code(c["citation"], language=None)
 
             st.divider()
 

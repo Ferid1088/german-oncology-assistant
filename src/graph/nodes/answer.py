@@ -52,7 +52,8 @@ def generate_answer(state: RAGState, client: OpenAI | None = None) -> dict:
 
     all_citations = [
         {
-            "label": f"[{i + 1}]",
+            "label": ch.get("citation_label") or f"[{i + 1}]",
+            "chunk_id": ch.get("chunk_id", ""),
             "citation": ch["citation"],
             "source_filename": ch.get("source_filename", ""),
             "section_path": ch.get("section_path", []),
@@ -63,6 +64,9 @@ def generate_answer(state: RAGState, client: OpenAI | None = None) -> dict:
             "recommendation_id": ch.get("recommendation_id", ""),
             "recommendation_grade": ch.get("recommendation_grade", ""),
             "evidence_level": ch.get("evidence_level", ""),
+            "reference_ids": ch.get("reference_ids", []),
+            "contextual_header": ch.get("contextual_header", ""),
+            "parent_chunk_id": ch.get("parent_chunk_id", ""),
             "is_opinion": False,
         }
         for i, ch in enumerate(chunks[:5])

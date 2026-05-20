@@ -9,12 +9,37 @@ from src.graph.nodes.guardrail_output import apply_output_guardrail
 
 
 def _multi_query_escalation(state: RAGState) -> dict:
-    """Simple multi-query fallback: run search with a broader reformulation."""
+    """Lightweight multi-query/decomposition fallback within current architecture."""
     from src.tools.search_guidelines import search_guidelines_tool
-    query = state.get("rewritten_query") or state["user_query"]
-    broader_query = f"Leitlinienempfehlungen zu {query}"
-    chunks = search_guidelines_tool(query=broader_query, top_k=5)
-    return {"retrieved_chunks": chunks}
+
+    base_query = state.get("rewritten_query") or state.get("redacted_query") or state["user_query"]
+    subqueries = state.get("query_decomposition") or []
+
+    candidate_queries = [base_query]
+    if subqueries:
+        candidate_queries.extend(subqueries)
+    candidate_queries.append(f"Leitlinienempfehlungen zu {base_query}")
+    candidate_queries.append(f"Empfehlung Evidenz Therapie {base_query}")
+
+    seen: set[str] = set()
+    merged: list[dict] = []
+    for q in candidate_queries:
+        q = q.strip()
+        if not q or q.lower() in seen:
+            continue
+        seen.add(q.lower())
+        hits = search_guidelines_tool(
+            query=q,
+            guideline_id=state.get("metadata_filters", {}).get("guideline_id"),
+            grade=state.get("metadata_filters", {}).get("grade"),
+            top_k=5,
+        )
+        for hit in hits:
+            key = hit.get("chunk_id")
+            if key and all(existing.get("chunk_id") != key for existing in merged):
+                merged.append(hit)
+
+    return {"retrieved_chunks": merged[:10]}
 
 
 def _blocked_response(state: RAGState) -> dict:

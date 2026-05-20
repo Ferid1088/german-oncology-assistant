@@ -12,6 +12,26 @@ _VALID_GRADES = {"A", "B", "0", ""}
 _VALID_CHUNK_TYPES = {"recommendation", "section", ""}
 
 
+def _decompose_query(query: str, intent: str) -> list[str]:
+    pieces: list[str] = []
+    lowered = query.lower()
+    if intent == "comparison" and " und " in lowered:
+        pieces = [p.strip() for p in query.split(" und ") if p.strip()]
+    elif any(marker in lowered for marker in ["sowie", "außerdem", "zusätzlich"]):
+        import re
+
+        pieces = [p.strip() for p in re.split(r"\b(?:sowie|außerdem|zusätzlich)\b", query, flags=re.IGNORECASE) if p.strip()]
+
+    deduped: list[str] = []
+    seen = set()
+    for item in pieces:
+        key = item.lower()
+        if key not in seen:
+            seen.add(key)
+            deduped.append(item)
+    return deduped
+
+
 def _client() -> OpenAI:
     return OpenAI(base_url="https://openrouter.ai/api/v1", api_key=os.environ["OPENROUTER_API_KEY"])
 
@@ -75,4 +95,5 @@ def rewrite_query(state: RAGState, client: OpenAI | None = None) -> dict:
         "rewritten_query": rewritten,
         "metadata_filters": merged_filters,
         "intent": intent,
+        "query_decomposition": _decompose_query(rewritten, intent),
     }

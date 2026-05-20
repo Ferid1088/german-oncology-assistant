@@ -1,19 +1,23 @@
 import json
+import os
 from fastapi import APIRouter, Depends
 from fastapi.responses import Response
 from pydantic import BaseModel
 from src.api.auth import verify_api_key
 from src.graph.graph import build_graph
+from src.graph.checkpointing import build_checkpointer
 from src.graph.state import RAGState
 
 router = APIRouter()
 _graph = None
+DEFAULT_USER_ROLE = os.getenv("DEFAULT_USER_ROLE", "user")
+DEFAULT_ALLOWED_SOURCES = ["guidelines"]
 
 
 def get_graph():
     global _graph
     if _graph is None:
-        _graph = build_graph()
+        _graph = build_graph(checkpointer=build_checkpointer())
     return _graph
 
 
@@ -38,8 +42,12 @@ def chat(request: ChatRequest):
                 "grade": request.grade,
             }.items() if v},
             intent="",
+            query_decomposition=[],
+            user_role=DEFAULT_USER_ROLE,
+            allowed_sources=DEFAULT_ALLOWED_SOURCES,
             retrieved_chunks=[],
             confidence=0.0,
+            escalation_reason="",
             answer_professional="",
             answer_plain="",
             citations=[],
@@ -47,6 +55,7 @@ def chat(request: ChatRequest):
             input_blocked=False,
             input_block_reason="",
             output_blocked=False,
+            redacted_query=request.query,
             tool_calls_log=[],
             messages=[],
         )

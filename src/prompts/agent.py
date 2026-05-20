@@ -11,5 +11,9 @@ PFLICHTREGELN:
   mit einer verfeinerten oder anderslautenden Suchanfrage auf.
 - Rufe lookup_empfehlung nur auf, wenn eine konkrete Empfehlungsnummer (z.B. "4.2.1")
   explizit in der Anfrage genannt wird.
+- Rufe compare_guidelines auf, wenn die Anfrage ausdrücklich einen Vergleich zwischen zwei Leitlinien verlangt.
+- Rufe drug_class_lookup auf, wenn nach einem Wirkstoff/Medikament über Leitlinien hinweg gefragt wird.
+- Rufe calculate_bmi auf, wenn Gewicht und Größe gegeben sind und eine BMI-Berechnung gewünscht ist.
+- Rufe pubmed_search nur dann auf, wenn externe Literatur gewünscht ist oder Leitlinienmaterial erkennbar nicht ausreicht.
 - Gib KEINE eigene Antwort oder Zusammenfassung — deine einzige Ausgabe sind Tool-Aufrufe.\
 """

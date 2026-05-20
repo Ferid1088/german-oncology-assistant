@@ -4,6 +4,11 @@ from openai import OpenAI
 from src.graph.state import RAGState
 from src.tools.search_guidelines import search_guidelines_tool
 from src.tools.lookup_empfehlung import lookup_empfehlung_tool
+from src.tools.compare_guidelines import compare_guidelines_tool
+from src.tools.drug_class_lookup import drug_class_lookup_tool
+from src.tools.calculate_bmi import calculate_bmi_tool
+from src.tools.pubmed_search import pubmed_search_tool
+from src.graph.permissions import is_source_allowed, is_tool_allowed
 from src.prompts.agent import AGENT_SYSTEM
 
 GEN_MODEL = os.getenv("GENERATION_MODEL", "openai/gpt-4o")
@@ -40,6 +45,66 @@ TOOLS_SPEC = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "compare_guidelines",
+            "description": "Vergleiche zwei Leitlinien zu einem Thema anhand der Datenbankfunde.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "topic": {"type": "string"},
+                    "guideline_a": {"type": "string", "enum": ["mamma", "krk", "lunge", "prosta"]},
+                    "guideline_b": {"type": "string", "enum": ["mamma", "krk", "lunge", "prosta"]},
+                },
+                "required": ["topic", "guideline_a", "guideline_b"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "drug_class_lookup",
+            "description": "Suche Leitlinien-Erwähnungen zu einem Medikament oder Wirkstoff über mehrere Leitlinien.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "substance_name": {"type": "string"},
+                },
+                "required": ["substance_name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "calculate_bmi",
+            "description": "Berechne den BMI aus Gewicht und Größe.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "weight_kg": {"type": "number"},
+                    "height_cm": {"type": "number"},
+                },
+                "required": ["weight_kg", "height_cm"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "pubmed_search",
+            "description": "Suche externe Literatur in PubMed, wenn Leitlinienmaterial nicht ausreicht.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string"},
+                    "max_results": {"type": "integer"},
+                },
+                "required": ["query"],
+            },
+        },
+    },
 ]
 
 
@@ -48,11 +113,38 @@ def _client() -> OpenAI:
 
 
 def _dispatch_tool(name: str, args: dict) -> str:
+    raise RuntimeError("_dispatch_tool(state-aware) should be used instead")
+
+
+def _dispatch_tool_with_state(state: RAGState, name: str, args: dict) -> str:
+    if not is_tool_allowed(state, name):
+        return json.dumps(
+            {"error": f"Tool '{name}' ist für die Rolle '{state.get('user_role', 'user')}' nicht erlaubt."},
+            ensure_ascii=False,
+        )
+
     if name == "search_guidelines":
         results = search_guidelines_tool(**args)
         return json.dumps(results, ensure_ascii=False)
     if name == "lookup_empfehlung":
         result = lookup_empfehlung_tool(**args)
+        return json.dumps(result, ensure_ascii=False)
+    if name == "compare_guidelines":
+        result = compare_guidelines_tool(**args)
+        return json.dumps(result, ensure_ascii=False)
+    if name == "drug_class_lookup":
+        result = drug_class_lookup_tool(**args)
+        return json.dumps(result, ensure_ascii=False)
+    if name == "calculate_bmi":
+        result = calculate_bmi_tool(**args)
+        return json.dumps(result, ensure_ascii=False)
+    if name == "pubmed_search":
+        if not is_source_allowed(state, "pubmed"):
+            return json.dumps(
+                {"error": "Externe Quellen (PubMed) sind für diese Anfrage nicht erlaubt."},
+                ensure_ascii=False,
+            )
+        result = pubmed_search_tool(**args)
         return json.dumps(result, ensure_ascii=False)
     return json.dumps({"error": f"Unknown tool: {name}"})
 
@@ -104,7 +196,7 @@ def run_agent(state: RAGState, client: OpenAI | None = None) -> dict:
                 searched_queries.add(q_key)
                 made_new_search = True
 
-            result_str = _dispatch_tool(tc.function.name, args)
+            result_str = _dispatch_tool_with_state(state, tc.function.name, args)
             tool_calls_log.append({"tool": tc.function.name, "args": args})
             messages.append({"role": "tool", "tool_call_id": tc.id, "content": result_str})
 

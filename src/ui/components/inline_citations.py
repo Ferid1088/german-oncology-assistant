@@ -4,6 +4,8 @@ import html as _html
 
 def _tooltip_content(citation: dict) -> str:
     parts = []
+    if citation.get("label"):
+        parts.append(f"<b>{_html.escape(citation['label'])}</b>")
     if citation.get("source_filename"):
         parts.append(f"<b>📄 {_html.escape(citation['source_filename'])}</b>")
     if citation.get("guideline_id"):
@@ -29,6 +31,12 @@ def _tooltip_content(citation: dict) -> str:
         if citation.get("page_end") and citation["page_end"] != citation["page_start"]:
             page += f"–{citation['page_end']}"
         parts.append(f"🔖 {_html.escape(page)}")
+    if citation.get("reference_ids"):
+        refs = citation["reference_ids"]
+        if isinstance(refs, list) and refs:
+            parts.append(f"📚 Referenzen: {_html.escape(', '.join(str(r) for r in refs))}")
+    if citation.get("contextual_header"):
+        parts.append(f"🧭 {_html.escape(citation['contextual_header'])}")
     return "<br>".join(parts) if parts else _html.escape(citation.get("citation", ""))
 
 
