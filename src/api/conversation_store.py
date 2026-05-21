@@ -146,6 +146,27 @@ class ConversationStore:
                 conversations.append(conversation)
             return conversations
 
+    def list_conversations_detailed(self) -> list[dict]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT id, title, created_at, updated_at
+                FROM conversations
+                WHERE deleted_at IS NULL
+                ORDER BY updated_at DESC, created_at DESC
+                """
+            ).fetchall()
+
+            conversations: list[dict] = []
+            for row in rows:
+                conversation = self._conversation_row(row)
+                conversation["messages"] = [
+                    self._message_dict(message)
+                    for message in self._list_message_rows(conn, row["id"])
+                ]
+                conversations.append(conversation)
+            return conversations
+
     def get_conversation(self, conversation_id: str) -> dict | None:
         with self._connect() as conn:
             row = conn.execute(

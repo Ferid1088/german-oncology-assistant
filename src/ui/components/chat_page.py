@@ -4,6 +4,7 @@ import datetime
 from urllib.parse import quote
 import httpx
 import streamlit as st
+from src.ui.components.analytics_dashboard import render_analytics_dashboard
 from src.ui.components.source_cards import render_source_cards, render_tool_calls
 from src.ui.components.inline_citations import annotate_citations
 from src.ui.components.filters import render_filters, render_feedback_buttons
@@ -183,6 +184,13 @@ _CSS = """
 }
 .cit-wrap:hover .cit-tip {
     display: block;
+}
+
+/* ── Analytics shell ─────────────────────────────────────── */
+.analytics-header-caption {
+    color: #8e8ea0;
+    font-size: 0.9rem;
+    margin-top: -6px;
 }
 </style>
 """
@@ -367,6 +375,8 @@ def _init_state(api_url: str, api_key: str) -> bool:
         st.session_state.conversations = {}
     if "active_id" not in st.session_state:
         st.session_state.active_id = None
+    if "analytics_open" not in st.session_state:
+        st.session_state.analytics_open = False
     if "backend_available" not in st.session_state:
         st.session_state.backend_available = True
     if "backend_error" not in st.session_state:
@@ -460,14 +470,33 @@ def render_chat_page(api_url: str, api_key: str) -> None:
 
     conv = st.session_state.conversations[st.session_state.active_id]
 
-    st.title("Onkologie Leitlinien-Assistent")
-    st.caption("S3-Leitlinien: Mammakarzinom · Kolorektales Karzinom · Lungenkarzinom · Prostatakarzinom")
+    title_col, toggle_col = st.columns([12, 1], gap="small")
+    with title_col:
+        st.title("Onkologie Leitlinien-Assistent")
+        st.caption("S3-Leitlinien: Mammakarzinom · Kolorektales Karzinom · Lungenkarzinom · Prostatakarzinom")
+    with toggle_col:
+        toggle_label = "✕" if st.session_state.analytics_open else "📊"
+        if st.button(toggle_label, key="analytics_toggle", help="Analytics Dashboard", use_container_width=True):
+            st.session_state.analytics_open = not st.session_state.analytics_open
+            st.rerun()
 
-    for msg in conv["messages"]:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
+    if st.session_state.analytics_open:
+        chat_col, analytics_col = st.columns([2.2, 1], gap="large")
+    else:
+        chat_col = st.container()
+        analytics_col = None
 
-    query = st.chat_input("Stellen Sie Ihre Frage zu den Leitlinien...")
+    with chat_col:
+        for msg in conv["messages"]:
+            with st.chat_message(msg["role"]):
+                st.markdown(msg["content"])
+
+        query = st.chat_input("Stellen Sie Ihre Frage zu den Leitlinien...")
+
+    if analytics_col is not None:
+        with analytics_col:
+            render_analytics_dashboard(api_url=api_url, api_key=api_key, conversation=conv, filters=filters)
+
     if not query:
         return
 
@@ -475,112 +504,114 @@ def render_chat_page(api_url: str, api_key: str) -> None:
         conv["title"] = query[:40] + ("..." if len(query) > 40 else "")
 
     conv["messages"].append({"role": "user", "content": query})
-    with st.chat_message("user"):
-        st.markdown(query)
+    with chat_col:
+        with st.chat_message("user"):
+            st.markdown(query)
 
-    with st.chat_message("assistant"):
-        with st.spinner("Suche in den Leitlinien..."):
-            try:
-                resp = httpx.post(
-                    f"{api_url}/chat",
-                    json={"query": query, "session_id": conv["session_id"], **filters},
-                    headers={"X-API-Key": api_key},
-                    timeout=120,
-                )
-                resp.raise_for_status()
-
-                payload = None
-                for line in resp.text.splitlines():
-                    if line.startswith("data:") and "[DONE]" not in line:
-                        payload = json.loads(line[5:].strip())
-
-                if payload and not payload.get("blocked"):
-                    citations = payload.get("citations", [])
-                    tool_calls = payload.get("tool_calls", [])
-                    rag_trace = payload.get("rag_trace", [])
-                    token_usage = payload.get("token_usage", {})
-                    external_search_snippets = payload.get("external_search_snippets", [])
-                    pro_raw = payload.get("answer_professional", "")
-                    plain_raw = payload.get("answer_plain", "")
-                    pro = annotate_citations(pro_raw, citations) if pro_raw else ""
-                    plain = annotate_citations(plain_raw, citations) if plain_raw else ""
-                    clarification_only = _is_clarification_payload(payload)
-                    main_col, side_col = st.columns([3, 1], gap="large")
-                    with main_col:
-                        _render_safety_panel(payload)
-                        if clarification_only and pro:
-                            st.markdown(pro, unsafe_allow_html=True)
-                        elif pro:
-                            st.markdown("**Fachliche Antwort**")
-                            st.markdown(pro, unsafe_allow_html=True)
-                        if plain:
-                            if pro:
-                                st.markdown("---")
-                            st.markdown("**In einfachen Worten**")
-                            st.markdown(plain, unsafe_allow_html=True)
-                        st.markdown(payload.get("disclaimer", ""))
-                        render_source_cards(citations)
-                        _render_request_diagnostics(payload)
-                        render_feedback_buttons(conv["session_id"], query, api_url, api_key)
-                    with side_col:
-                        render_token_usage_panel(token_usage)
-                        render_rag_process_panel(rag_trace)
-                        if tool_calls:
-                            render_tool_calls(tool_calls)
-                        render_external_search_panel(external_search_snippets)
-                    answer_text = _combine_answer_parts(pro_raw, plain_raw)
-                elif payload and payload.get("blocked"):
-                    _render_validation_feedback(payload)
-                    _render_safety_panel(payload)
-                    st.warning(payload.get("answer_professional", "Anfrage blockiert."))
-                    plain_raw = payload.get("answer_plain", "")
-                    if plain_raw:
-                        st.markdown(plain_raw)
-                    retry_after = payload.get("retry_after_seconds")
-                    if retry_after:
-                        st.caption(f"Retry in {retry_after} seconds.")
-                    explanation_title = payload.get("blocked_explanation_title") or "Why?"
-                    explanation = payload.get("blocked_explanation")
-                    if explanation:
-                        with st.expander(explanation_title, expanded=False):
-                            st.markdown(explanation)
-                    render_rag_process_panel(payload.get("rag_trace", []))
-                    _render_request_diagnostics(payload)
-                    answer_text = _combine_answer_parts(payload.get("answer_professional", ""), plain_raw)
-                else:
-                    st.error("Keine Antwort erhalten.")
-                    answer_text = ""
-
-                conv["messages"].append({"role": "assistant", "content": answer_text})
-
-            except httpx.HTTPStatusError as e:
-                response = e.response
-                detail = {}
+    with chat_col:
+        with st.chat_message("assistant"):
+            with st.spinner("Suche in den Leitlinien..."):
                 try:
-                    detail = response.json()
-                except Exception:
-                    detail = {"message": str(e)}
+                    resp = httpx.post(
+                        f"{api_url}/chat",
+                        json={"query": query, "session_id": conv["session_id"], **filters},
+                        headers={"X-API-Key": api_key},
+                        timeout=120,
+                    )
+                    resp.raise_for_status()
 
-                if response.status_code == 422:
-                    payload = {
-                        "blocked": True,
-                        "blocked_reason": "validation",
-                        "answer_professional": detail.get("message", "The request data is invalid."),
-                        "answer_plain": "Please adjust the input and try again.",
-                        "technical_title": detail.get("technical_title", "Technical details"),
-                        "technical_details": detail.get("technical_details", detail),
-                        "trace_id": detail.get("trace_id"),
-                    }
-                    _render_validation_feedback(payload)
-                    plain_raw = payload.get("answer_plain", "")
-                    if plain_raw:
-                        st.markdown(plain_raw)
-                    _render_request_diagnostics(payload)
-                    conv["messages"].append({
-                        "role": "assistant",
-                        "content": _combine_answer_parts(payload.get("answer_professional", ""), plain_raw),
-                    })
-                else:
+                    payload = None
+                    for line in resp.text.splitlines():
+                        if line.startswith("data:") and "[DONE]" not in line:
+                            payload = json.loads(line[5:].strip())
+
+                    if payload and not payload.get("blocked"):
+                        citations = payload.get("citations", [])
+                        tool_calls = payload.get("tool_calls", [])
+                        rag_trace = payload.get("rag_trace", [])
+                        token_usage = payload.get("token_usage", {})
+                        external_search_snippets = payload.get("external_search_snippets", [])
+                        pro_raw = payload.get("answer_professional", "")
+                        plain_raw = payload.get("answer_plain", "")
+                        pro = annotate_citations(pro_raw, citations) if pro_raw else ""
+                        plain = annotate_citations(plain_raw, citations) if plain_raw else ""
+                        clarification_only = _is_clarification_payload(payload)
+                        main_col, side_col = st.columns([3, 1], gap="large")
+                        with main_col:
+                            _render_safety_panel(payload)
+                            if clarification_only and pro:
+                                st.markdown(pro, unsafe_allow_html=True)
+                            elif pro:
+                                st.markdown("**Fachliche Antwort**")
+                                st.markdown(pro, unsafe_allow_html=True)
+                            if plain:
+                                if pro:
+                                    st.markdown("---")
+                                st.markdown("**In einfachen Worten**")
+                                st.markdown(plain, unsafe_allow_html=True)
+                            st.markdown(payload.get("disclaimer", ""))
+                            render_source_cards(citations)
+                            _render_request_diagnostics(payload)
+                            render_feedback_buttons(conv["session_id"], query, api_url, api_key)
+                        with side_col:
+                            render_token_usage_panel(token_usage)
+                            render_rag_process_panel(rag_trace)
+                            if tool_calls:
+                                render_tool_calls(tool_calls)
+                            render_external_search_panel(external_search_snippets)
+                        answer_text = _combine_answer_parts(pro_raw, plain_raw)
+                    elif payload and payload.get("blocked"):
+                        _render_validation_feedback(payload)
+                        _render_safety_panel(payload)
+                        st.warning(payload.get("answer_professional", "Anfrage blockiert."))
+                        plain_raw = payload.get("answer_plain", "")
+                        if plain_raw:
+                            st.markdown(plain_raw)
+                        retry_after = payload.get("retry_after_seconds")
+                        if retry_after:
+                            st.caption(f"Retry in {retry_after} seconds.")
+                        explanation_title = payload.get("blocked_explanation_title") or "Why?"
+                        explanation = payload.get("blocked_explanation")
+                        if explanation:
+                            with st.expander(explanation_title, expanded=False):
+                                st.markdown(explanation)
+                        render_rag_process_panel(payload.get("rag_trace", []))
+                        _render_request_diagnostics(payload)
+                        answer_text = _combine_answer_parts(payload.get("answer_professional", ""), plain_raw)
+                    else:
+                        st.error("Keine Antwort erhalten.")
+                        answer_text = ""
+
+                    conv["messages"].append({"role": "assistant", "content": answer_text})
+
+                except httpx.HTTPStatusError as e:
+                    response = e.response
+                    detail = {}
+                    try:
+                        detail = response.json()
+                    except Exception:
+                        detail = {"message": str(e)}
+
+                    if response.status_code == 422:
+                        payload = {
+                            "blocked": True,
+                            "blocked_reason": "validation",
+                            "answer_professional": detail.get("message", "The request data is invalid."),
+                            "answer_plain": "Please adjust the input and try again.",
+                            "technical_title": detail.get("technical_title", "Technical details"),
+                            "technical_details": detail.get("technical_details", detail),
+                            "trace_id": detail.get("trace_id"),
+                        }
+                        _render_validation_feedback(payload)
+                        plain_raw = payload.get("answer_plain", "")
+                        if plain_raw:
+                            st.markdown(plain_raw)
+                        _render_request_diagnostics(payload)
+                        conv["messages"].append({
+                            "role": "assistant",
+                            "content": _combine_answer_parts(payload.get("answer_professional", ""), plain_raw),
+                        })
+                    else:
+                        st.error(f"Fehler: {e}")
+                except Exception as e:
                     st.error(f"Fehler: {e}")
-            except Exception as e:
-                st.error(f"Fehler: {e}")

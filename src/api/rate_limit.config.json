@@ -14,7 +14,7 @@
     "general": {
       "limit": 60,
       "window_seconds": 60,
-      "routes": ["/conversations", "/conversations/{session_id}", "/conversations/{session_id}/export"]
+      "routes": ["/conversations", "/conversations/{session_id}", "/conversations/{session_id}/export", "/analytics/overview"]
     }
   }
 }

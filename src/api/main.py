@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from src.api.observability import configure_logging, configure_observability
+from src.api.routes.analytics import router as analytics_router
 from src.api.routes.chat import router as chat_router
 from src.api.routes.conversations import router as conversations_router
 from src.api.routes.feedback import router as feedback_router
@@ -20,6 +21,7 @@ app.add_middleware(
 app.include_router(chat_router)
 app.include_router(conversations_router)
 app.include_router(feedback_router)
+app.include_router(analytics_router)
 configure_observability(app)
 
 
