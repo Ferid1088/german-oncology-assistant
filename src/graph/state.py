@@ -53,6 +53,9 @@ class RAGState(TypedDict):
     prior_answer_plain: str
     prior_citations: list[dict]
     prior_retrieved_chunks: list[dict]
+    prior_rewritten_query: str
+    prior_rag_trace: list[dict]
+    prior_external_search_snippets: list[dict]
 
     # Conversation memory
     messages: Annotated[list, add_messages]

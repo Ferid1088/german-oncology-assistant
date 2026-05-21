@@ -1,3 +1,5 @@
+import re
+
 from langgraph.graph import StateGraph, END
 from src.graph.state import RAGState
 from src.graph.nodes.guardrail_input import apply_input_guardrail
@@ -5,7 +7,7 @@ from src.graph.nodes.rewriter import rewrite_query
 from src.graph.nodes.turn_router import route_turn
 from src.graph.nodes.agent import run_agent
 from src.graph.nodes.confidence import check_confidence, needs_escalation
-from src.graph.nodes.answer import generate_answer
+from src.graph.nodes.answer import DISCLAIMER, generate_answer
 from src.graph.nodes.guardrail_output import apply_output_guardrail
 from src.graph.nodes.external_search import run_external_search
 from src.retrieval.postprocess import top_unique_result_dicts
@@ -102,7 +104,55 @@ def _route_after_guardrail(state: RAGState) -> str:
 def _route_after_rewrite(state: RAGState) -> str:
     if state.get("requires_clarification"):
         return "clarification"
+    if _is_duplicate_of_prior_query(state):
+        return "repeat_answer"
     return "turn_router"
+
+
+def _normalize_query(value: str) -> str:
+    text = (value or "").strip().casefold()
+    text = re.sub(r"[^\w\säöüß]", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _is_duplicate_of_prior_query(state: RAGState) -> bool:
+    current = _normalize_query(state.get("rewritten_query") or state.get("redacted_query") or state.get("user_query", ""))
+    previous = _normalize_query(state.get("prior_rewritten_query", ""))
+    has_prior_answer = bool(state.get("prior_answer_professional") or state.get("prior_answer_plain"))
+    return bool(current and previous and has_prior_answer and current == previous)
+
+
+def _prior_disclaimer(state: RAGState) -> str:
+    prior_rag_trace = state.get("prior_rag_trace", [])
+    if isinstance(prior_rag_trace, list) and any(
+        isinstance(step, dict) and step.get("name") == "answer" for step in prior_rag_trace
+    ):
+        return DISCLAIMER
+    return ""
+
+
+def _repeat_previous_answer_response(state: RAGState) -> dict:
+    rewritten_query = state.get("rewritten_query") or state.get("redacted_query") or state.get("user_query", "")
+    return {
+        "answer_professional": state.get("prior_answer_professional", ""),
+        "answer_plain": state.get("prior_answer_plain", ""),
+        "citations": list(state.get("prior_citations", [])),
+        "retrieved_chunks": list(state.get("prior_retrieved_chunks", [])),
+        "external_search_snippets": list(state.get("prior_external_search_snippets", [])),
+        "tool_calls_log": [],
+        "disclaimer": _prior_disclaimer(state),
+        "followup_routing": "memory",
+        "rag_trace": append_rag_step(
+            state.get("rag_trace", []),
+            name="repeat_answer",
+            status="ok",
+            summary="The previous answer was replayed because the rewritten query matched the previous intent.",
+            details={
+                "rewritten_query": rewritten_query,
+                "prior_rewritten_query": state.get("prior_rewritten_query", ""),
+            },
+        ),
+    }
 
 
 def build_graph(checkpointer=None):
@@ -112,6 +162,7 @@ def build_graph(checkpointer=None):
     builder.add_node("blocked", _blocked_response)
     builder.add_node("rewrite", rewrite_query)
     builder.add_node("clarification", _clarification_response)
+    builder.add_node("repeat_answer", _repeat_previous_answer_response)
     builder.add_node("turn_router", route_turn)
     builder.add_node("agent", run_agent)
     builder.add_node("confidence", check_confidence)
@@ -128,9 +179,11 @@ def build_graph(checkpointer=None):
     builder.add_edge("blocked", END)
     builder.add_conditional_edges("rewrite", _route_after_rewrite, {
         "clarification": "clarification",
+        "repeat_answer": "repeat_answer",
         "turn_router": "turn_router",
     })
     builder.add_edge("clarification", END)
+    builder.add_edge("repeat_answer", END)
     builder.add_edge("turn_router", "agent")
     builder.add_edge("agent", "confidence")
     builder.add_conditional_edges("confidence", needs_escalation, {

@@ -224,6 +224,16 @@ _CSS = """
     font-size: 0.84rem;
     margin: 0 0 0.55rem 0;
 }
+.analytics-toggle-helper {
+    color: #64748b;
+    font-size: 0.92rem;
+    margin: 0.15rem 0 0.9rem 0;
+}
+.analytics-scroll-helper {
+    color: #64748b;
+    font-size: 0.82rem;
+    margin: 0 0 0.55rem 0;
+}
 </style>
 """
 
@@ -407,6 +417,8 @@ def _init_state(api_url: str, api_key: str) -> bool:
         st.session_state.conversations = {}
     if "active_id" not in st.session_state:
         st.session_state.active_id = None
+    if "analytics_open" not in st.session_state:
+        st.session_state.analytics_open = False
     if "backend_available" not in st.session_state:
         st.session_state.backend_available = True
     if "backend_error" not in st.session_state:
@@ -500,25 +512,52 @@ def render_chat_page(api_url: str, api_key: str) -> None:
 
     conv = st.session_state.conversations[st.session_state.active_id]
 
-    st.title("Onkologie Leitlinien-Assistent")
-    st.caption("S3-Leitlinien: Mammakarzinom · Kolorektales Karzinom · Lungenkarzinom · Prostatakarzinom")
-    st.markdown(
-        '<div class="workspace-helper">Use the workspace tabs to switch between the assistant and the decorated analytics demo view.</div>',
-        unsafe_allow_html=True,
-    )
+    title_col, action_col = st.columns([6, 1.4], gap="medium")
+    with title_col:
+        st.title("Onkologie Leitlinien-Assistent")
+        st.caption("S3-Leitlinien: Mammakarzinom · Kolorektales Karzinom · Lungenkarzinom · Prostatakarzinom")
+    with action_col:
+        button_label = "✕ Close analytics" if st.session_state.analytics_open else "📊 Analytics"
+        if st.button(button_label, key="analytics_toggle", width="stretch"):
+            st.session_state.analytics_open = not st.session_state.analytics_open
+            st.rerun()
 
-    assistant_tab, analytics_tab = st.tabs(["💬 Assistant", "📊 Analytics"])
+    helper_text = (
+        "Analytics is open on the right side and uses about one third of the page width."
+        if st.session_state.analytics_open
+        else "Click Analytics to open the right-side analytics panel."
+    )
+    st.markdown(f'<div class="analytics-toggle-helper">{helper_text}</div>', unsafe_allow_html=True)
+
+    if st.session_state.analytics_open:
+        chat_col, analytics_col = st.columns([2, 1], gap="large")
+    else:
+        chat_col = st.container()
+        analytics_col = None
+
     query = None
 
-    with assistant_tab:
+    with chat_col:
         for msg in conv["messages"]:
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
 
         query = st.chat_input("Stellen Sie Ihre Frage zu den Leitlinien...")
 
-    with analytics_tab:
-        render_analytics_dashboard(api_url=api_url, api_key=api_key, conversation=conv, filters=filters)
+    if analytics_col is not None:
+        with analytics_col:
+            st.markdown(
+                '<div class="analytics-scroll-helper">This analytics panel scrolls independently from the main page.</div>',
+                unsafe_allow_html=True,
+            )
+            with st.container(height=980, border=False, key="analytics_scroll_panel"):
+                render_analytics_dashboard(
+                    api_url=api_url,
+                    api_key=api_key,
+                    conversation=conv,
+                    filters=filters,
+                    compact=True,
+                )
 
     if not query:
         return
@@ -527,11 +566,11 @@ def render_chat_page(api_url: str, api_key: str) -> None:
         conv["title"] = query[:40] + ("..." if len(query) > 40 else "")
 
     conv["messages"].append({"role": "user", "content": query})
-    with assistant_tab:
+    with chat_col:
         with st.chat_message("user"):
             st.markdown(query)
 
-    with assistant_tab:
+    with chat_col:
         with st.chat_message("assistant"):
             with st.spinner("Suche in den Leitlinien..."):
                 try:

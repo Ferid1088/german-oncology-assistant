@@ -131,7 +131,20 @@ def _metric_card(label: str, value: str, meta: str = "", tone: str = "blue") -> 
     """
 
 
-def _render_metric_row(items: list[dict]) -> None:
+def _render_metric_row(items: list[dict], *, compact: bool = False) -> None:
+    if compact:
+        for item in items:
+            st.markdown(
+                _metric_card(
+                    item["label"],
+                    item["value"],
+                    item.get("meta", ""),
+                    item.get("tone", "blue"),
+                ),
+                unsafe_allow_html=True,
+            )
+        return
+
     columns = st.columns(len(items))
     for column, item in zip(columns, items):
         with column:
@@ -167,7 +180,13 @@ def _load_analytics(api_url: str, api_key: str, session_id: str | None) -> tuple
         return None, str(exc)
 
 
-def _render_overview(conversation: dict | None, filters: dict | None, analytics: dict | None) -> None:
+def _render_overview(
+    conversation: dict | None,
+    filters: dict | None,
+    analytics: dict | None,
+    *,
+    compact: bool = False,
+) -> None:
     overview = (analytics or {}).get("overview", {})
     title = (conversation or {}).get("title") or "Neue Konversation"
     session_id = (conversation or {}).get("session_id") or "—"
@@ -198,7 +217,8 @@ def _render_overview(conversation: dict | None, filters: dict | None, analytics:
                 "meta": "Completed assistant responses available for review.",
                 "tone": "violet",
             },
-        ]
+        ],
+        compact=compact,
     )
 
     _render_metric_row(
@@ -221,7 +241,8 @@ def _render_overview(conversation: dict | None, filters: dict | None, analytics:
                 "meta": f"Avg citations / answer: {float(overview.get('avg_citations_per_answer', 0.0) or 0.0):.1f}",
                 "tone": "slate",
             },
-        ]
+        ],
+        compact=compact,
     )
 
     _render_metric_row(
@@ -244,7 +265,8 @@ def _render_overview(conversation: dict | None, filters: dict | None, analytics:
                 "meta": f"Session: {session_id} · Local messages: {_safe_message_count(conversation)}",
                 "tone": "violet",
             },
-        ]
+        ],
+        compact=compact,
     )
 
     with st.expander("Current workspace snapshot", expanded=False):
@@ -253,7 +275,7 @@ def _render_overview(conversation: dict | None, filters: dict | None, analytics:
         st.caption(f"Assistant turns in this session: {_safe_assistant_count(conversation)}")
 
 
-def _render_usage(analytics: dict | None) -> None:
+def _render_usage(analytics: dict | None, *, compact: bool = False) -> None:
     timeseries = (analytics or {}).get("timeseries", {})
     conversations = timeseries.get("conversations", [])
     questions = timeseries.get("questions", [])
@@ -265,18 +287,25 @@ def _render_usage(analytics: dict | None) -> None:
         unsafe_allow_html=True,
     )
     if conversations:
-        col1, col2 = st.columns(2)
-        with col1:
+        merged = []
+        question_map = {row["date"]: row["count"] for row in questions}
+        answer_map = {row["date"]: row["count"] for row in answers}
+        for date in sorted(set(question_map) | set(answer_map)):
+            merged.append({"date": date, "questions": question_map.get(date, 0), "answers": answer_map.get(date, 0)})
+
+        if compact:
             st.caption("Conversations by day")
             st.dataframe(conversations, hide_index=True, width="stretch")
-        with col2:
             st.caption("Questions and answers by day")
-            merged = []
-            question_map = {row["date"]: row["count"] for row in questions}
-            answer_map = {row["date"]: row["count"] for row in answers}
-            for date in sorted(set(question_map) | set(answer_map)):
-                merged.append({"date": date, "questions": question_map.get(date, 0), "answers": answer_map.get(date, 0)})
             st.dataframe(merged, hide_index=True, width="stretch")
+        else:
+            col1, col2 = st.columns(2)
+            with col1:
+                st.caption("Conversations by day")
+                st.dataframe(conversations, hide_index=True, width="stretch")
+            with col2:
+                st.caption("Questions and answers by day")
+                st.dataframe(merged, hide_index=True, width="stretch")
     else:
         st.info("No conversation analytics are available yet.")
 
@@ -289,7 +318,7 @@ def _render_distribution_block(title: str, rows: list[dict]) -> None:
         st.info("No data available yet.")
 
 
-def _render_rag_process(analytics: dict | None) -> None:
+def _render_rag_process(analytics: dict | None, *, compact: bool = False) -> None:
     distributions = (analytics or {}).get("distributions", {})
     current_session = (analytics or {}).get("current_session") or {}
     rag_status = distributions.get("rag_status", [])
@@ -324,7 +353,8 @@ def _render_rag_process(analytics: dict | None) -> None:
                 "meta": "Potential weak points worth reviewing.",
                 "tone": "violet",
             },
-        ]
+        ],
+        compact=compact,
     )
 
     _render_metric_row(
@@ -347,24 +377,37 @@ def _render_rag_process(analytics: dict | None) -> None:
                 "meta": "Turns that needed search results from outside the core corpus.",
                 "tone": "slate",
             },
-        ]
+        ],
+        compact=compact,
     )
 
     _render_distribution_block("RAG step status distribution", rag_status)
 
 
-def _render_diagnostics(conversation: dict | None, filters: dict | None, analytics: dict | None) -> None:
+def _render_diagnostics(
+    conversation: dict | None,
+    filters: dict | None,
+    analytics: dict | None,
+    *,
+    compact: bool = False,
+) -> None:
     distributions = (analytics or {}).get("distributions", {})
     tables = (analytics or {}).get("tables", {})
     current_session = (analytics or {}).get("current_session") or {}
 
-    col1, col2 = st.columns(2)
-    with col1:
+    if compact:
         _render_distribution_block("Tool usage", distributions.get("tools", []))
         _render_distribution_block("Guideline references", distributions.get("guidelines", []))
-    with col2:
         _render_distribution_block("RAG step status", distributions.get("rag_status", []))
         _render_distribution_block("Top sessions by cost", tables.get("top_sessions", []))
+    else:
+        col1, col2 = st.columns(2)
+        with col1:
+            _render_distribution_block("Tool usage", distributions.get("tools", []))
+            _render_distribution_block("Guideline references", distributions.get("guidelines", []))
+        with col2:
+            _render_distribution_block("RAG step status", distributions.get("rag_status", []))
+            _render_distribution_block("Top sessions by cost", tables.get("top_sessions", []))
 
     with st.expander("Context for the current workspace", expanded=False):
         st.json(
@@ -384,6 +427,7 @@ def render_analytics_dashboard(
     api_key: str,
     conversation: dict | None = None,
     filters: dict | None = None,
+    compact: bool = False,
 ) -> None:
     analytics, error = _load_analytics(api_url, api_key, (conversation or {}).get("session_id"))
 
@@ -405,16 +449,17 @@ def render_analytics_dashboard(
         if error:
             st.warning(f"Analytics service unavailable: {error}")
 
-        overview_tab, usage_tab, rag_tab, diagnostics_tab = st.tabs(["Overview", "Usage", "RAG Process", "Diagnostics"])
+        tab_labels = ["Overview", "Usage", "RAG", "Diagnostics"] if compact else ["Overview", "Usage", "RAG Process", "Diagnostics"]
+        overview_tab, usage_tab, rag_tab, diagnostics_tab = st.tabs(tab_labels)
 
         with overview_tab:
-            _render_overview(conversation, filters, analytics)
+            _render_overview(conversation, filters, analytics, compact=compact)
 
         with usage_tab:
-            _render_usage(analytics)
+            _render_usage(analytics, compact=compact)
 
         with rag_tab:
-            _render_rag_process(analytics)
+            _render_rag_process(analytics, compact=compact)
 
         with diagnostics_tab:
-            _render_diagnostics(conversation, filters, analytics)
+            _render_diagnostics(conversation, filters, analytics, compact=compact)

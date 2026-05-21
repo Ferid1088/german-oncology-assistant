@@ -35,6 +35,20 @@ def _from_json(value: str | None, default):
         return default
 
 
+def _rewritten_query_from_rag_trace(rag_trace: object) -> str:
+    steps = rag_trace if isinstance(rag_trace, list) else []
+    for step in reversed(steps):
+        if not isinstance(step, dict) or step.get("name") != "rewrite":
+            continue
+        details = step.get("details", {})
+        if not isinstance(details, dict):
+            continue
+        rewritten = details.get("rewritten_query")
+        if isinstance(rewritten, str) and rewritten.strip():
+            return rewritten.strip()
+    return ""
+
+
 class ConversationStore:
     def __init__(self, db_path: str | Path | None = None):
         configured = db_path or os.getenv("CONVERSATION_DB_PATH", "data/app_state.db")
@@ -249,6 +263,9 @@ class ConversationStore:
                     "prior_answer_plain": "",
                     "prior_citations": [],
                     "prior_retrieved_chunks": [],
+                    "prior_rewritten_query": "",
+                    "prior_rag_trace": [],
+                    "prior_external_search_snippets": [],
                 }
 
             rows = self._list_message_rows(conn, conversation_id)
@@ -257,6 +274,9 @@ class ConversationStore:
             prior_answer_plain = ""
             prior_citations: list[dict] = []
             prior_retrieved_chunks: list[dict] = []
+            prior_rewritten_query = ""
+            prior_rag_trace: list[dict] = []
+            prior_external_search_snippets: list[dict] = []
 
             for row in rows:
                 if row["role"] == "user":
@@ -267,6 +287,9 @@ class ConversationStore:
                     prior_answer_plain = row["answer_plain"] or ""
                     prior_citations = _from_json(row["citations"], [])
                     prior_retrieved_chunks = _from_json(row["retrieved_chunks"], [])
+                    prior_rag_trace = _from_json(row["rag_trace"], [])
+                    prior_rewritten_query = _rewritten_query_from_rag_trace(prior_rag_trace)
+                    prior_external_search_snippets = _from_json(row["external_search_snippets"], [])
 
             return {
                 "messages": history,
@@ -274,6 +297,9 @@ class ConversationStore:
                 "prior_answer_plain": prior_answer_plain,
                 "prior_citations": prior_citations,
                 "prior_retrieved_chunks": prior_retrieved_chunks,
+                "prior_rewritten_query": prior_rewritten_query,
+                "prior_rag_trace": prior_rag_trace,
+                "prior_external_search_snippets": prior_external_search_snippets,
             }
 
     def append_turn(self, conversation_id: str, user_query: str, final_state: dict, combined_answer: str) -> None:
