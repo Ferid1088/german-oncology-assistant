@@ -192,6 +192,38 @@ _CSS = """
     font-size: 0.9rem;
     margin-top: -6px;
 }
+
+/* ── Workspace / analytics tabs ──────────────────────────── */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 0.5rem;
+    margin-bottom: 0.8rem;
+}
+.stTabs [data-baseweb="tab"] {
+    height: auto;
+    border-radius: 999px;
+    padding: 0.55rem 1rem;
+    background: #eef4fb;
+    border: 1px solid #dbe5f0;
+    color: #334155;
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+.stTabs [aria-selected="true"] {
+    background: linear-gradient(135deg, #dbeafe 0%, #e0f2fe 100%);
+    border-color: #93c5fd;
+    color: #0f172a;
+    box-shadow: 0 10px 24px rgba(59, 130, 246, 0.14);
+}
+.workspace-helper {
+    color: #64748b;
+    font-size: 0.95rem;
+    margin: 0 0 0.9rem 0;
+}
+.assistant-panel-helper {
+    color: #64748b;
+    font-size: 0.84rem;
+    margin: 0 0 0.55rem 0;
+}
 </style>
 """
 
@@ -268,7 +300,7 @@ def _show_backend_unavailable(api_url: str, error: Exception) -> None:
     st.caption(f"Backend URL: {api_url}")
     with st.expander("Technical details", expanded=False):
         st.code(str(error))
-    if st.button("Erneut versuchen", use_container_width=True):
+    if st.button("Erneut versuchen", width="stretch"):
         st.rerun()
 
 
@@ -375,8 +407,6 @@ def _init_state(api_url: str, api_key: str) -> bool:
         st.session_state.conversations = {}
     if "active_id" not in st.session_state:
         st.session_state.active_id = None
-    if "analytics_open" not in st.session_state:
-        st.session_state.analytics_open = False
     if "backend_available" not in st.session_state:
         st.session_state.backend_available = True
     if "backend_error" not in st.session_state:
@@ -394,7 +424,7 @@ def _render_sidebar(api_url: str, api_key: str) -> dict:
         st.divider()
 
         # ── New Chat ──────────────────────────────────────────
-        if st.button("✏️  Neuer Chat", use_container_width=True):
+        if st.button("✏️  Neuer Chat", width="stretch"):
             st.session_state.active_id = _create_conversation(api_url, api_key)
             st.rerun()
 
@@ -425,15 +455,15 @@ def _render_sidebar(api_url: str, api_key: str) -> dict:
                 if st.button(
                     conv["title"],
                     key=f"conv_{cid}",
-                    use_container_width=True,
+                    width="stretch",
                     type=btn_type,
                 ):
                     if not is_active:
                         st.session_state.active_id = cid
                         st.rerun()
             with col_dots:
-                with st.popover("⋯", use_container_width=True):
-                    if st.button("🗑 Löschen", key=f"del_{cid}", use_container_width=True):
+                with st.popover("⋯", width="stretch"):
+                    if st.button("🗑 Löschen", key=f"del_{cid}", width="stretch"):
                         _delete_conversation(cid, api_url, api_key)
                         st.rerun()
 
@@ -445,17 +475,17 @@ def _render_sidebar(api_url: str, api_key: str) -> dict:
             st.link_button(
                 "JSON",
                 f"{api_url}/conversations/{session_id}/export?format=json&api_key={encoded_key}",
-                use_container_width=True,
+                width="stretch",
             )
             st.link_button(
                 "CSV",
                 f"{api_url}/conversations/{session_id}/export?format=csv&api_key={encoded_key}",
-                use_container_width=True,
+                width="stretch",
             )
             st.link_button(
                 "PDF",
                 f"{api_url}/conversations/{session_id}/export?format=pdf&api_key={encoded_key}",
-                use_container_width=True,
+                width="stretch",
             )
 
     return filters
@@ -470,32 +500,25 @@ def render_chat_page(api_url: str, api_key: str) -> None:
 
     conv = st.session_state.conversations[st.session_state.active_id]
 
-    title_col, toggle_col = st.columns([12, 1], gap="small")
-    with title_col:
-        st.title("Onkologie Leitlinien-Assistent")
-        st.caption("S3-Leitlinien: Mammakarzinom · Kolorektales Karzinom · Lungenkarzinom · Prostatakarzinom")
-    with toggle_col:
-        toggle_label = "✕" if st.session_state.analytics_open else "📊"
-        if st.button(toggle_label, key="analytics_toggle", help="Analytics Dashboard", use_container_width=True):
-            st.session_state.analytics_open = not st.session_state.analytics_open
-            st.rerun()
+    st.title("Onkologie Leitlinien-Assistent")
+    st.caption("S3-Leitlinien: Mammakarzinom · Kolorektales Karzinom · Lungenkarzinom · Prostatakarzinom")
+    st.markdown(
+        '<div class="workspace-helper">Use the workspace tabs to switch between the assistant and the decorated analytics demo view.</div>',
+        unsafe_allow_html=True,
+    )
 
-    if st.session_state.analytics_open:
-        chat_col, analytics_col = st.columns([2.2, 1], gap="large")
-    else:
-        chat_col = st.container()
-        analytics_col = None
+    assistant_tab, analytics_tab = st.tabs(["💬 Assistant", "📊 Analytics"])
+    query = None
 
-    with chat_col:
+    with assistant_tab:
         for msg in conv["messages"]:
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
 
         query = st.chat_input("Stellen Sie Ihre Frage zu den Leitlinien...")
 
-    if analytics_col is not None:
-        with analytics_col:
-            render_analytics_dashboard(api_url=api_url, api_key=api_key, conversation=conv, filters=filters)
+    with analytics_tab:
+        render_analytics_dashboard(api_url=api_url, api_key=api_key, conversation=conv, filters=filters)
 
     if not query:
         return
@@ -504,11 +527,11 @@ def render_chat_page(api_url: str, api_key: str) -> None:
         conv["title"] = query[:40] + ("..." if len(query) > 40 else "")
 
     conv["messages"].append({"role": "user", "content": query})
-    with chat_col:
+    with assistant_tab:
         with st.chat_message("user"):
             st.markdown(query)
 
-    with chat_col:
+    with assistant_tab:
         with st.chat_message("assistant"):
             with st.spinner("Suche in den Leitlinien..."):
                 try:
@@ -554,11 +577,36 @@ def render_chat_page(api_url: str, api_key: str) -> None:
                             _render_request_diagnostics(payload)
                             render_feedback_buttons(conv["session_id"], query, api_url, api_key)
                         with side_col:
-                            render_token_usage_panel(token_usage)
-                            render_rag_process_panel(rag_trace)
-                            if tool_calls:
-                                render_tool_calls(tool_calls)
-                            render_external_search_panel(external_search_snippets)
+                            usage_panel, rag_panel, tools_panel, web_panel = st.tabs(
+                                ["Usage", "RAG Process", "Tools", "Web"]
+                            )
+                            with usage_panel:
+                                st.markdown(
+                                    '<div class="assistant-panel-helper">Token and cost details for this answer.</div>',
+                                    unsafe_allow_html=True,
+                                )
+                                render_token_usage_panel(token_usage)
+                            with rag_panel:
+                                st.markdown(
+                                    '<div class="assistant-panel-helper">Clicking this tab opens the RAG process details directly.</div>',
+                                    unsafe_allow_html=True,
+                                )
+                                render_rag_process_panel(rag_trace, expand_steps=True)
+                            with tools_panel:
+                                st.markdown(
+                                    '<div class="assistant-panel-helper">Executed tools and their previews.</div>',
+                                    unsafe_allow_html=True,
+                                )
+                                if tool_calls:
+                                    render_tool_calls(tool_calls)
+                                else:
+                                    st.info("No tool calls were needed for this answer.")
+                            with web_panel:
+                                st.markdown(
+                                    '<div class="assistant-panel-helper">External search snippets used to enrich this answer.</div>',
+                                    unsafe_allow_html=True,
+                                )
+                                render_external_search_panel(external_search_snippets)
                         answer_text = _combine_answer_parts(pro_raw, plain_raw)
                     elif payload and payload.get("blocked"):
                         _render_validation_feedback(payload)
@@ -575,7 +623,11 @@ def render_chat_page(api_url: str, api_key: str) -> None:
                         if explanation:
                             with st.expander(explanation_title, expanded=False):
                                 st.markdown(explanation)
-                        render_rag_process_panel(payload.get("rag_trace", []))
+                        blocked_usage, blocked_rag = st.tabs(["Usage", "RAG Process"])
+                        with blocked_usage:
+                            render_token_usage_panel(payload.get("token_usage", {}))
+                        with blocked_rag:
+                            render_rag_process_panel(payload.get("rag_trace", []), expand_steps=True)
                         _render_request_diagnostics(payload)
                         answer_text = _combine_answer_parts(payload.get("answer_professional", ""), plain_raw)
                     else:

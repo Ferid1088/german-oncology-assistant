@@ -37,7 +37,7 @@ def render_token_usage_panel(token_usage: dict | None) -> None:
                 )
 
 
-def render_rag_process_panel(rag_trace: list[dict] | None) -> None:
+def render_rag_process_panel(rag_trace: list[dict] | None, *, expand_steps: bool = False) -> None:
     if not rag_trace:
         return
     st.markdown("### RAG process")
@@ -52,7 +52,10 @@ def render_rag_process_panel(rag_trace: list[dict] | None) -> None:
         }.get(status, "•")
         duration = step.get("duration_ms")
         extra = f" · {duration:.0f} ms" if isinstance(duration, (int, float)) else ""
-        with st.expander(f"{icon} {step.get('name', 'step')} — {step.get('summary', '')[:60]}{extra}", expanded=False):
+        with st.expander(
+            f"{icon} {step.get('name', 'step')} — {step.get('summary', '')[:60]}{extra}",
+            expanded=expand_steps,
+        ):
             st.caption(step.get("summary", ""))
             details = step.get("details", {})
             if details:
