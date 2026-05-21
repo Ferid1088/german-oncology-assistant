@@ -5,8 +5,8 @@ from functools import lru_cache
 from pathlib import Path
 
 
-PROMT_ROOT = Path(__file__).resolve().parent
-AMBIGUITY_ROOT = PROMT_ROOT / "ambiguity"
+PROMPT_ROOT = Path(__file__).resolve().parent
+AMBIGUITY_ROOT = PROMPT_ROOT
 
 
 def _read_text(path: Path) -> str:

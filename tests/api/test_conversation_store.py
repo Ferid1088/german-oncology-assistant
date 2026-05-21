@@ -44,5 +44,10 @@ def test_conversation_store_persists_turns_and_soft_deletes(tmp_path):
     assert exported["messages"][1]["token_usage"]["total_tokens"] == 42
     assert exported["messages"][1]["external_search_snippets"][0]["title"] == "Source"
 
+    detailed = store.list_conversations_detailed()
+    assert len(detailed) == 1
+    assert detailed[0]["messages"][1]["tool_calls"][0]["tool"] == "search_guidelines"
+    assert detailed[0]["messages"][1]["citations"][0]["title"] == "Quelle"
+
     assert store.delete_conversation("conv-1") is True
     assert store.list_conversations() == []

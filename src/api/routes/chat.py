@@ -26,9 +26,9 @@ def _combine_answer_parts(answer_professional: str, answer_plain: str) -> str:
 
     parts = []
     if answer_professional:
-        parts.append(f"Fachliche Antwort:\n{answer_professional}")
+        parts.append(f"Ola antwortet fachlich:\n{answer_professional}")
     if answer_plain:
-        parts.append(f"In einfachen Worten:\n{answer_plain}")
+        parts.append(f"Ola erklärt es einfach:\n{answer_plain}")
     return "\n\n".join(parts).strip()
 
 
@@ -142,6 +142,9 @@ def chat(request: ChatRequest, raw_request: Request):
             prior_answer_plain=session_memory.get("prior_answer_plain", ""),
             prior_citations=session_memory.get("prior_citations", []),
             prior_retrieved_chunks=session_memory.get("prior_retrieved_chunks", []),
+            prior_rewritten_query=session_memory.get("prior_rewritten_query", ""),
+            prior_rag_trace=session_memory.get("prior_rag_trace", []),
+            prior_external_search_snippets=session_memory.get("prior_external_search_snippets", []),
             messages=input_messages,
         )
 

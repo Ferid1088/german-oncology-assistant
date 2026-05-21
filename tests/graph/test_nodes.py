@@ -50,6 +50,9 @@ def _base_state() -> RAGState:
         prior_answer_plain="",
         prior_citations=[],
         prior_retrieved_chunks=[],
+        prior_rewritten_query="",
+        prior_rag_trace=[],
+        prior_external_search_snippets=[],
         messages=[],
     )
 
@@ -230,6 +233,7 @@ def test_in_memory_session_fallback_persists_prior_context(tmp_path, monkeypatch
         "answer_plain": "Vorherige einfache Antwort",
         "citations": [{"label": "[1]"}],
         "retrieved_chunks": [{"chunk_id": "c1", "citation": "[1]", "text": "abc"}],
+        "rag_trace": [{"name": "rewrite", "status": "ok", "details": {"rewritten_query": "empfehlungsgrade leitlinie"}}],
     }
     chat_module._save_session_memory(session_id, final_state, "Welche Empfehlungsgrade gibt es?")
 
@@ -239,6 +243,7 @@ def test_in_memory_session_fallback_persists_prior_context(tmp_path, monkeypatch
     assert "Vorherige einfache Antwort" in str(second["messages"][1].content)
     assert second["prior_answer_professional"] == "Vorherige fachliche Antwort"
     assert second["prior_retrieved_chunks"] == final_state["retrieved_chunks"]
+    assert second["prior_rewritten_query"] == "empfehlungsgrade leitlinie"
 
 
 def test_confidence_high_when_chunks_present():
