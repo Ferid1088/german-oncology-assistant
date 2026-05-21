@@ -1,4 +1,4 @@
-from src.promt.loader import build_ambiguity_prompt_messages
+from src.prompts.ambiguity.loader import build_ambiguity_prompt_messages
 
 
 def test_build_ambiguity_prompt_messages_loads_file_based_examples():

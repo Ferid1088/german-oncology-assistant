@@ -113,17 +113,25 @@ def test_route_group_is_loaded_from_json_config(tmp_path):
         "bucket_key_parts": ["route_group", "api_key", "ip"],
         "route_groups": {
             "chat": {"limit": 7, "window_seconds": 30, "routes": ["/chat"]},
-            "general": {"limit": 11, "window_seconds": 45, "routes": ["/conversations", "/conversations/{session_id}", "/conversations/{session_id}/export"]},
-            "feedback": {"limit": 13, "window_seconds": 90, "routes": ["/feedback"]}
+            "general": {
+                "limit": 11,
+                "window_seconds": 45,
+                "routes": [
+                    "/conversations",
+                    "/conversations/{session_id}",
+                    "/conversations/{session_id}/export",
+                    "/analytics/overview",
+                ],
+            },
         }
     }
     _write_rate_limit_config(tmp_path, config)
 
     assert route_group_for_path("/chat") == "chat"
-    assert route_group_for_path("/feedback") == "feedback"
     assert route_group_for_path("/conversations") == "general"
     assert route_group_for_path("/conversations/abc") == "general"
     assert route_group_for_path("/conversations/abc/export") == "general"
+    assert route_group_for_path("/analytics/overview") == "general"
 
     policy = rate_limit_module._policy_for("chat")
     assert policy.limit == 7

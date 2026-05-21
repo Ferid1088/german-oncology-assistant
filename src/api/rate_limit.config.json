@@ -6,11 +6,6 @@
       "window_seconds": 60,
       "routes": ["/chat"]
     },
-    "feedback": {
-      "limit": 60,
-      "window_seconds": 60,
-      "routes": ["/feedback"]
-    },
     "general": {
       "limit": 60,
       "window_seconds": 60,

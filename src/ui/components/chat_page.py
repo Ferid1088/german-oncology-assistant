@@ -1,3 +1,15 @@
+"""Streamlit chat workspace for the oncology assistant.
+
+This module owns the main end-user page layout:
+- sidebar filters and conversation history
+- the central chat experience
+- the optional right-side analytics panel
+- rendering of assistant diagnostics, citations, and tool traces
+
+Most helpers are intentionally small so UI/state/network responsibilities stay
+easy to follow when Streamlit reruns the script after each interaction.
+"""
+
 import json
 import uuid
 import datetime
@@ -14,6 +26,10 @@ from src.ui.components.insights_panels import (
     render_token_usage_panel,
 )
 
+AGENT_NAME = "Ola"
+
+# Shared CSS injected once per render to style the Streamlit shell and custom
+# chat/analytics affordances that are difficult to tune with native components.
 _CSS = """
 <style>
 /* ── Sidebar dark background ── */
@@ -40,7 +56,7 @@ _CSS = """
     border-radius: 6px !important;
     color: #ececec !important;
     text-align: left !important;
-    font-size: 14px !important;
+    font-size: 12px !important;
     line-height: 1.5 !important;
     padding: 7px 10px !important;
     transition: background 0.15s !important;
@@ -104,6 +120,59 @@ _CSS = """
 [data-testid="stSidebar"] hr {
     border-color: #3a3a3a !important;
     margin: 6px 0 !important;
+}
+
+/* ── Neuer Chat: small 3D tab, left-aligned ── */
+[data-testid="stSidebar"] div:has(> #neuer-chat-marker) + div .stButton {
+    display: flex !important;
+    justify-content: flex-start !important;
+}
+[data-testid="stSidebar"] div:has(> #neuer-chat-marker) + div button {
+    background: linear-gradient(180deg, #f3e8ff 0%, #ddd6fe 100%) !important;
+    color: #5b21b6 !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    padding: 4px 12px !important;
+    border-radius: 6px 6px 0 0 !important;
+    border: 1px solid #a78bfa !important;
+    border-bottom: 2px solid #7c3aed !important;
+    box-shadow: 0 -2px 0 rgba(255,255,255,0.6) inset,
+                0 3px 6px rgba(109,40,217,0.25),
+                2px 0 0 rgba(255,255,255,0.4) inset !important;
+    text-align: left !important;
+    white-space: nowrap !important;
+    width: auto !important;
+    min-width: unset !important;
+    transform: translateY(1px) !important;
+    transition: all 0.1s !important;
+    letter-spacing: 0.01em !important;
+}
+[data-testid="stSidebar"] div:has(> #neuer-chat-marker) + div button:hover {
+    background: linear-gradient(180deg, #ede9fe 0%, #c4b5fd 100%) !important;
+    color: #4c1d95 !important;
+    box-shadow: 0 -2px 0 rgba(255,255,255,0.7) inset,
+                0 4px 8px rgba(109,40,217,0.35),
+                2px 0 0 rgba(255,255,255,0.5) inset !important;
+    transform: translateY(0px) !important;
+}
+
+/* ── Export buttons: violet, small, uniform ── */
+[data-testid="stSidebar"] .stLinkButton a {
+    background-color: #7c3aed !important;
+    color: #ffffff !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    padding: 4px 0 !important;
+    border-radius: 6px !important;
+    border: none !important;
+    text-align: center !important;
+    width: 100% !important;
+    display: block !important;
+}
+[data-testid="stSidebar"] .stLinkButton a:hover {
+    background-color: #6d28d9 !important;
+    color: #ffffff !important;
+    text-decoration: none !important;
 }
 
 /* ── Filter selectboxes dark theme ── */
@@ -186,13 +255,6 @@ _CSS = """
     display: block;
 }
 
-/* ── Analytics shell ─────────────────────────────────────── */
-.analytics-header-caption {
-    color: #8e8ea0;
-    font-size: 0.9rem;
-    margin-top: -6px;
-}
-
 /* ── Workspace / analytics tabs ──────────────────────────── */
 .stTabs [data-baseweb="tab-list"] {
     gap: 0.5rem;
@@ -214,11 +276,6 @@ _CSS = """
     color: #0f172a;
     box-shadow: 0 10px 24px rgba(59, 130, 246, 0.14);
 }
-.workspace-helper {
-    color: #64748b;
-    font-size: 0.95rem;
-    margin: 0 0 0.9rem 0;
-}
 .assistant-panel-helper {
     color: #64748b;
     font-size: 0.84rem;
@@ -237,6 +294,7 @@ _CSS = """
 </style>
 """
 
+# Inline style used for conversation history date-group headings in the sidebar.
 _DATE_LABEL_STYLE = (
     "color:#8e8ea0;font-size:11px;font-weight:600;"
     "padding:10px 10px 3px;text-transform:uppercase;"
@@ -245,22 +303,32 @@ _DATE_LABEL_STYLE = (
 
 
 def _combine_answer_parts(answer_professional: str, answer_plain: str) -> str:
+    """Combine the professional and layperson answers into one stored message.
+
+    The UI renders these parts separately when possible, but conversation
+    history persists a single assistant message body for simpler replay.
+    """
+
     if not answer_plain:
         return (answer_professional or "").strip()
 
     parts = []
     if answer_professional:
-        parts.append(f"Fachliche Antwort\n\n{answer_professional}")
+        parts.append(f"{AGENT_NAME} antwortet fachlich\n\n{answer_professional}")
     if answer_plain:
-        parts.append(f"In einfachen Worten\n\n{answer_plain}")
+        parts.append(f"{AGENT_NAME} erklärt es einfach\n\n{answer_plain}")
     return "\n\n".join(parts).strip()
 
 
 def _is_clarification_payload(payload: dict) -> bool:
+    """Return True when the backend response is a clarification-only turn."""
+
     return bool(payload.get("requires_clarification")) and not payload.get("answer_plain")
 
 
 def _as_datetime(value) -> datetime.datetime:
+    """Normalize strings/datetimes into a datetime for sorting and grouping."""
+
     if isinstance(value, datetime.datetime):
         return value
     if isinstance(value, str) and value:
@@ -272,6 +340,8 @@ def _as_datetime(value) -> datetime.datetime:
 
 
 def _date_group(dt: datetime.datetime | str) -> str:
+    """Map timestamps to human-friendly sidebar buckets."""
+
     dt_value = _as_datetime(dt)
     delta = (datetime.date.today() - dt_value.date()).days
     if delta == 0:
@@ -286,10 +356,14 @@ def _date_group(dt: datetime.datetime | str) -> str:
 
 
 def _api_headers(api_key: str) -> dict[str, str]:
+    """Build the standard auth header used for backend requests."""
+
     return {"X-API-Key": api_key}
 
 
 def _load_conversations(api_url: str, api_key: str) -> dict[str, dict]:
+    """Fetch conversations from the backend and index them by session id."""
+
     response = httpx.get(
         f"{api_url}/conversations",
         headers=_api_headers(api_key),
@@ -305,6 +379,14 @@ def _merge_conversation_metadata(
     existing_conversations: dict[str, dict],
     fresh_conversations: dict[str, dict],
 ) -> dict[str, dict]:
+    """Merge backend conversation data with richer UI-side message metadata.
+
+    The backend is the source of truth for the message list itself, while the UI
+    may already hold additional per-message display metadata such as citations,
+    tool calls, and RAG traces. This helper preserves those fields across
+    refreshes when the message role/order still matches.
+    """
+
     merged: dict[str, dict] = {}
 
     for session_id, fresh_conversation in fresh_conversations.items():
@@ -320,6 +402,8 @@ def _merge_conversation_metadata(
 
         for index, fresh_message in enumerate(fresh_messages):
             merged_message = dict(fresh_message)
+            # Preserve UI-only metadata when we can confidently match the same
+            # logical message across a backend refresh.
             if index < len(existing_messages):
                 existing_message = existing_messages[index]
                 if existing_message.get("role") == fresh_message.get("role"):
@@ -342,6 +426,8 @@ def _merge_conversation_metadata(
 
 
 def _render_conversation_message(message: dict) -> None:
+    """Render a single chat message, including citations for assistant turns."""
+
     with st.chat_message(message["role"]):
         if message.get("role") != "assistant":
             st.markdown(message.get("content", ""))
@@ -351,21 +437,77 @@ def _render_conversation_message(message: dict) -> None:
         if not isinstance(citations, list):
             citations = []
 
+        token_usage = message.get("token_usage", {})
+        rag_trace = message.get("rag_trace", [])
+        tool_calls = message.get("tool_calls", [])
+        external_search_snippets = message.get("external_search_snippets", [])
+
+        has_detail_panel = any(
+            [
+                isinstance(token_usage, dict) and bool(token_usage),
+                isinstance(rag_trace, list) and bool(rag_trace),
+                isinstance(tool_calls, list) and bool(tool_calls),
+                isinstance(external_search_snippets, list) and bool(external_search_snippets),
+            ]
+        )
+
         content = message.get("content", "")
         rendered_content = annotate_citations(content, citations) if citations else content
-        st.markdown(rendered_content, unsafe_allow_html=bool(citations))
-
         disclaimer = message.get("disclaimer", "")
-        if disclaimer:
-            st.markdown(disclaimer)
 
-        render_source_cards(citations)
+        if not has_detail_panel:
+            st.markdown(rendered_content, unsafe_allow_html=bool(citations))
+            if disclaimer:
+                st.markdown(disclaimer)
+            render_source_cards(citations)
+            return
+
+        main_col, side_col = st.columns([3, 1], gap="large")
+        with main_col:
+            st.markdown(rendered_content, unsafe_allow_html=bool(citations))
+            if disclaimer:
+                st.markdown(disclaimer)
+            render_source_cards(citations)
+
+        with side_col:
+            usage_panel, rag_panel, tools_panel, web_panel = st.tabs(
+                ["Usage", "RAG Process", "Tools", "Web"]
+            )
+            with usage_panel:
+                st.markdown(
+                    f'<div class="assistant-panel-helper">{AGENT_NAME} zeigt hier Token- und Kostendetails zu dieser Antwort.</div>',
+                    unsafe_allow_html=True,
+                )
+                render_token_usage_panel(token_usage)
+            with rag_panel:
+                st.markdown(
+                    f'<div class="assistant-panel-helper">Hier sehen Sie, wie {AGENT_NAME} gedacht, gesucht und den RAG-Prozess durchlaufen hat.</div>',
+                    unsafe_allow_html=True,
+                )
+                render_rag_process_panel(rag_trace, expand_steps=True)
+            with tools_panel:
+                st.markdown(
+                    f'<div class="assistant-panel-helper">Hier sehen Sie, welche Tools {AGENT_NAME} benutzt hat.</div>',
+                    unsafe_allow_html=True,
+                )
+                if tool_calls:
+                    render_tool_calls(tool_calls)
+                else:
+                    st.info(f"{AGENT_NAME} brauchte für diese Antwort keine zusätzlichen Tools.")
+            with web_panel:
+                st.markdown(
+                    f'<div class="assistant-panel-helper">Hier sehen Sie, ob {AGENT_NAME} im Internet gesucht hat, um die Antwort zu ergänzen.</div>',
+                    unsafe_allow_html=True,
+                )
+                render_external_search_panel(external_search_snippets)
 
 
 def _show_backend_unavailable(api_url: str, error: Exception) -> None:
-    st.title("Onkologie Leitlinien-Assistent")
+    """Render a friendly fallback state when the FastAPI backend is unavailable."""
+
+    st.title(f"{AGENT_NAME} · Onkologie-Assistent")
     st.error(
-        "Die UI konnte den Backend-Service noch nicht erreichen. "
+        f"{AGENT_NAME} konnte den Backend-Service noch nicht erreichen. "
         "Bitte warten Sie einen Moment und versuchen Sie es erneut."
     )
     st.caption(f"Backend URL: {api_url}")
@@ -376,6 +518,8 @@ def _show_backend_unavailable(api_url: str, error: Exception) -> None:
 
 
 def _render_validation_feedback(payload: dict) -> None:
+    """Show validation-specific diagnostics returned by the backend."""
+
     technical = payload.get("technical_details") or {}
     if payload.get("blocked_reason") != "validation" and technical.get("status_code") != 422:
         return
@@ -387,6 +531,8 @@ def _render_validation_feedback(payload: dict) -> None:
 
 
 def _render_request_diagnostics(payload: dict) -> None:
+    """Render a compact diagnostic block for debugging and observability."""
+
     diagnostics = {
         "trace_id": payload.get("trace_id"),
         "followup_routing": payload.get("followup_routing"),
@@ -408,6 +554,8 @@ def _render_request_diagnostics(payload: dict) -> None:
 
 
 def _render_safety_panel(payload: dict) -> None:
+    """Display safety warnings and optional explanations for limited answers."""
+
     warning = payload.get("safety_warning")
     explanation = payload.get("safety_explanation")
     title = payload.get("safety_title") or "Why was this limited?"
@@ -420,6 +568,8 @@ def _render_safety_panel(payload: dict) -> None:
 
 
 def _create_conversation(api_url: str, api_key: str) -> str:
+    """Create a new conversation in the backend and cache it locally."""
+
     new_id = str(uuid.uuid4())
     response = httpx.post(
         f"{api_url}/conversations",
@@ -433,6 +583,8 @@ def _create_conversation(api_url: str, api_key: str) -> str:
 
 
 def _delete_conversation(cid: str, api_url: str, api_key: str) -> None:
+    """Delete a conversation and keep the local active selection in sync."""
+
     response = httpx.delete(
         f"{api_url}/conversations/{cid}",
         headers=_api_headers(api_key),
@@ -446,6 +598,8 @@ def _delete_conversation(cid: str, api_url: str, api_key: str) -> None:
 
 
 def _sync_conversations(api_url: str, api_key: str) -> bool:
+    """Synchronize sidebar/chat state with the backend conversation store."""
+
     try:
         conversations = _load_conversations(api_url, api_key)
     except httpx.HTTPError as exc:
@@ -461,6 +615,8 @@ def _sync_conversations(api_url: str, api_key: str) -> bool:
     )
 
     if not conversations:
+        # First-run experience: automatically create an empty conversation so
+        # the user lands directly in a ready-to-chat workspace.
         st.session_state.active_id = _create_conversation(api_url, api_key)
         return True
 
@@ -477,6 +633,8 @@ def _sync_conversations(api_url: str, api_key: str) -> bool:
 
 
 def _init_state(api_url: str, api_key: str) -> bool:
+    """Initialize Streamlit session state keys used by this page."""
+
     if "conversations" not in st.session_state:
         st.session_state.conversations = {}
     if "active_id" not in st.session_state:
@@ -491,6 +649,8 @@ def _init_state(api_url: str, api_key: str) -> bool:
 
 
 def _render_sidebar(api_url: str, api_key: str) -> dict:
+    """Render the sidebar and return the currently selected filter payload."""
+
     st.markdown(_CSS, unsafe_allow_html=True)
 
     with st.sidebar:
@@ -500,7 +660,8 @@ def _render_sidebar(api_url: str, api_key: str) -> dict:
         st.divider()
 
         # ── New Chat ──────────────────────────────────────────
-        if st.button("✏️  Neuer Chat", width="stretch"):
+        st.markdown('<div id="neuer-chat-marker"></div>', unsafe_allow_html=True)
+        if st.button("＋ Neuer Chat", key="new_chat_btn"):
             st.session_state.active_id = _create_conversation(api_url, api_key)
             st.rerun()
 
@@ -515,6 +676,8 @@ def _render_sidebar(api_url: str, api_key: str) -> dict:
         current_group = None
 
         for cid, conv in convs:
+            # Group conversations by relative recency to keep long histories
+            # scannable without needing a separate search UI.
             group = _date_group(conv.get("updated_at") or conv.get("created_at"))
             if group != current_group:
                 st.markdown(
@@ -544,30 +707,26 @@ def _render_sidebar(api_url: str, api_key: str) -> dict:
                         st.rerun()
 
         if st.session_state.get("active_id"):
+            # Export links are bound to the active conversation only so the
+            # sidebar stays lightweight and action-oriented.
             session_id = st.session_state.active_id
             encoded_key = quote(api_key, safe="")
             st.divider()
             st.caption("Export conversation")
-            st.link_button(
-                "JSON",
-                f"{api_url}/conversations/{session_id}/export?format=json&api_key={encoded_key}",
-                width="stretch",
-            )
-            st.link_button(
-                "CSV",
-                f"{api_url}/conversations/{session_id}/export?format=csv&api_key={encoded_key}",
-                width="stretch",
-            )
-            st.link_button(
-                "PDF",
-                f"{api_url}/conversations/{session_id}/export?format=pdf&api_key={encoded_key}",
-                width="stretch",
-            )
+            col_j, col_c, col_p = st.columns(3, gap="small")
+            with col_j:
+                st.link_button("JSON", f"{api_url}/conversations/{session_id}/export?format=json&api_key={encoded_key}", use_container_width=True)
+            with col_c:
+                st.link_button("CSV", f"{api_url}/conversations/{session_id}/export?format=csv&api_key={encoded_key}", use_container_width=True)
+            with col_p:
+                st.link_button("PDF", f"{api_url}/conversations/{session_id}/export?format=pdf&api_key={encoded_key}", use_container_width=True)
 
     return filters
 
 
 def render_chat_page(api_url: str, api_key: str) -> None:
+    """Render the full chat page, including sidebar, chat, and analytics panel."""
+
     if not _init_state(api_url, api_key):
         _show_backend_unavailable(api_url, st.session_state.get("backend_error", "Unbekannter Fehler"))
         return
@@ -578,22 +737,25 @@ def render_chat_page(api_url: str, api_key: str) -> None:
 
     title_col, action_col = st.columns([6, 1.4], gap="medium")
     with title_col:
-        st.title("Onkologie Leitlinien-Assistent")
-        st.caption("S3-Leitlinien: Mammakarzinom · Kolorektales Karzinom · Lungenkarzinom · Prostatakarzinom")
+        st.title(f"{AGENT_NAME} · Onkologie-Assistent")
+        st.caption(
+            f"{AGENT_NAME} arbeitet mit S3-Leitlinien zu Mammakarzinom · Kolorektalem Karzinom · Lungenkarzinom · Prostatakarzinom"
+        )
     with action_col:
-        button_label = "✕ Close analytics" if st.session_state.analytics_open else "📊 Analytics"
+        button_label = "✕ Ola Analytics schließen" if st.session_state.analytics_open else "📊 Ola Analytics"
         if st.button(button_label, key="analytics_toggle", width="stretch"):
             st.session_state.analytics_open = not st.session_state.analytics_open
             st.rerun()
 
     helper_text = (
-        "Analytics is open on the right side and uses about one third of the page width."
+        f"Ola Analytics ist rechts geöffnet und nutzt ungefähr ein Drittel der Seitenbreite."
         if st.session_state.analytics_open
-        else "Click Analytics to open the right-side analytics panel."
+        else f"Klicken Sie auf Ola Analytics, um das Analyse-Panel auf der rechten Seite zu öffnen."
     )
     st.markdown(f'<div class="analytics-toggle-helper">{helper_text}</div>', unsafe_allow_html=True)
 
     if st.session_state.analytics_open:
+        # Keep chat primary and analytics secondary by using a wider chat column.
         chat_col, analytics_col = st.columns([2, 1], gap="large")
     else:
         chat_col = st.container()
@@ -606,12 +768,14 @@ def render_chat_page(api_url: str, api_key: str) -> None:
         with messages_container:
             for msg in conv["messages"]:
                 _render_conversation_message(msg)
-        query = st.chat_input("Stellen Sie Ihre Frage zu den Leitlinien...")
+        query = st.chat_input(f"Fragen Sie {AGENT_NAME} etwas zu den Leitlinien...")
 
     if analytics_col is not None:
         with analytics_col:
+            # The analytics dashboard gets its own scroll container so long
+            # metric panels do not push the chat input off-screen.
             st.markdown(
-                '<div class="analytics-scroll-helper">This analytics panel scrolls independently from the main page.</div>',
+                f'<div class="analytics-scroll-helper">{AGENT_NAME} Analytics scrollt unabhängig von der Hauptseite.</div>',
                 unsafe_allow_html=True,
             )
             with st.container(height=980, border=False, key="analytics_scroll_panel"):
@@ -627,6 +791,8 @@ def render_chat_page(api_url: str, api_key: str) -> None:
         return
 
     if not conv["messages"]:
+        # Seed the conversation title from the first user prompt so the sidebar
+        # history becomes readable immediately.
         conv["title"] = query[:40] + ("..." if len(query) > 40 else "")
 
     user_message = {"role": "user", "content": query}
@@ -636,7 +802,7 @@ def render_chat_page(api_url: str, api_key: str) -> None:
 
     with messages_container:
         with st.chat_message("assistant"):
-            with st.spinner("Suche in den Leitlinien..."):
+            with st.spinner(f"{AGENT_NAME} denkt nach und sucht in den Leitlinien ..."):
                 try:
                     resp = httpx.post(
                         f"{api_url}/chat",
@@ -647,11 +813,16 @@ def render_chat_page(api_url: str, api_key: str) -> None:
                     resp.raise_for_status()
 
                     payload = None
+                    # The backend responds as an SSE-style stream. For the
+                    # current UI we extract the last non-[DONE] data event as
+                    # the final assembled payload.
                     for line in resp.text.splitlines():
                         if line.startswith("data:") and "[DONE]" not in line:
                             payload = json.loads(line[5:].strip())
 
                     if payload and not payload.get("blocked"):
+                        # Successful answer path: render the answer plus the
+                        # supporting traces (usage, RAG flow, tools, web).
                         citations = payload.get("citations", [])
                         tool_calls = payload.get("tool_calls", [])
                         rag_trace = payload.get("rag_trace", [])
@@ -668,44 +839,43 @@ def render_chat_page(api_url: str, api_key: str) -> None:
                             if clarification_only and pro:
                                 st.markdown(pro, unsafe_allow_html=True)
                             elif pro:
-                                st.markdown("**Fachliche Antwort**")
+                                st.markdown(f"**{AGENT_NAME} antwortet fachlich**")
                                 st.markdown(pro, unsafe_allow_html=True)
                             if plain:
                                 if pro:
                                     st.markdown("---")
-                                st.markdown("**In einfachen Worten**")
+                                st.markdown(f"**{AGENT_NAME} erklärt es einfach**")
                                 st.markdown(plain, unsafe_allow_html=True)
                             st.markdown(payload.get("disclaimer", ""))
                             render_source_cards(citations)
-                            _render_request_diagnostics(payload)
                         with side_col:
                             usage_panel, rag_panel, tools_panel, web_panel = st.tabs(
                                 ["Usage", "RAG Process", "Tools", "Web"]
                             )
                             with usage_panel:
                                 st.markdown(
-                                    '<div class="assistant-panel-helper">Token and cost details for this answer.</div>',
+                                    f'<div class="assistant-panel-helper">{AGENT_NAME} zeigt hier Token- und Kostendetails zu dieser Antwort.</div>',
                                     unsafe_allow_html=True,
                                 )
                                 render_token_usage_panel(token_usage)
                             with rag_panel:
                                 st.markdown(
-                                    '<div class="assistant-panel-helper">Clicking this tab opens the RAG process details directly.</div>',
+                                    f'<div class="assistant-panel-helper">Hier sehen Sie, wie {AGENT_NAME} gedacht, gesucht und den RAG-Prozess durchlaufen hat.</div>',
                                     unsafe_allow_html=True,
                                 )
                                 render_rag_process_panel(rag_trace, expand_steps=True)
                             with tools_panel:
                                 st.markdown(
-                                    '<div class="assistant-panel-helper">Executed tools and their previews.</div>',
+                                    f'<div class="assistant-panel-helper">Hier sehen Sie, welche Tools {AGENT_NAME} benutzt hat.</div>',
                                     unsafe_allow_html=True,
                                 )
                                 if tool_calls:
                                     render_tool_calls(tool_calls)
                                 else:
-                                    st.info("No tool calls were needed for this answer.")
+                                    st.info(f"{AGENT_NAME} brauchte für diese Antwort keine zusätzlichen Tools.")
                             with web_panel:
                                 st.markdown(
-                                    '<div class="assistant-panel-helper">External search snippets used to enrich this answer.</div>',
+                                    f'<div class="assistant-panel-helper">Hier sehen Sie, ob {AGENT_NAME} im Internet gesucht hat, um die Antwort zu ergänzen.</div>',
                                     unsafe_allow_html=True,
                                 )
                                 render_external_search_panel(external_search_snippets)
@@ -723,6 +893,8 @@ def render_chat_page(api_url: str, api_key: str) -> None:
                             }
                         )
                     elif payload and payload.get("blocked"):
+                        # Blocked responses still get rendered and stored so the
+                        # conversation history reflects guardrails accurately.
                         _render_validation_feedback(payload)
                         _render_safety_panel(payload)
                         st.warning(payload.get("answer_professional", "Anfrage blockiert."))
@@ -742,7 +914,6 @@ def render_chat_page(api_url: str, api_key: str) -> None:
                             render_token_usage_panel(payload.get("token_usage", {}))
                         with blocked_rag:
                             render_rag_process_panel(payload.get("rag_trace", []), expand_steps=True)
-                        _render_request_diagnostics(payload)
                         answer_text = _combine_answer_parts(payload.get("answer_professional", ""), plain_raw)
                         conv["messages"].append(
                             {
@@ -750,6 +921,7 @@ def render_chat_page(api_url: str, api_key: str) -> None:
                                 "content": answer_text,
                                 "citations": payload.get("citations", []),
                                 "disclaimer": payload.get("disclaimer", ""),
+                                "token_usage": payload.get("token_usage", {}),
                             }
                         )
                     else:
@@ -757,6 +929,8 @@ def render_chat_page(api_url: str, api_key: str) -> None:
                         answer_text = ""
 
                 except httpx.HTTPStatusError as e:
+                    # Convert validation errors into the same payload shape used
+                    # by blocked responses, which keeps the UI path consistent.
                     response = e.response
                     detail = {}
                     try:
@@ -778,14 +952,16 @@ def render_chat_page(api_url: str, api_key: str) -> None:
                         plain_raw = payload.get("answer_plain", "")
                         if plain_raw:
                             st.markdown(plain_raw)
-                        _render_request_diagnostics(payload)
                         conv["messages"].append({
                             "role": "assistant",
                             "content": _combine_answer_parts(payload.get("answer_professional", ""), plain_raw),
                             "citations": [],
                             "disclaimer": payload.get("disclaimer", ""),
+                            "token_usage": payload.get("token_usage", {}),
                         })
                     else:
                         st.error(f"Fehler: {e}")
                 except Exception as e:
+                    # Final defensive catch so the UI does not fail silently in
+                    # the middle of a user conversation.
                     st.error(f"Fehler: {e}")

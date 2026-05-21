@@ -3,6 +3,8 @@ from __future__ import annotations
 import httpx
 import streamlit as st
 
+AGENT_NAME = "Ola"
+
 
 _ANALYTICS_CSS = """
 <style>
@@ -191,9 +193,9 @@ def _render_overview(
     title = (conversation or {}).get("title") or "Neue Konversation"
     session_id = (conversation or {}).get("session_id") or "—"
 
-    st.markdown('<div class="analytics-section-title">Executive snapshot</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="analytics-section-title">{AGENT_NAME} im Überblick</div>', unsafe_allow_html=True)
     st.markdown(
-        '<div class="analytics-section-copy">A polished overview of assistant usage, cost, and answer quality for the current workspace.</div>',
+        f'<div class="analytics-section-copy">Ein kompakter Überblick darüber, wie {AGENT_NAME} im aktuellen Arbeitsbereich antwortet, sucht und Kosten verursacht.</div>',
         unsafe_allow_html=True,
     )
 
@@ -208,13 +210,13 @@ def _render_overview(
             {
                 "label": "Questions",
                 "value": str(overview.get("total_questions", 0)),
-                "meta": "User requests processed by the assistant.",
+                "meta": f"Anfragen, die von {AGENT_NAME} verarbeitet wurden.",
                 "tone": "cyan",
             },
             {
                 "label": "Answers",
                 "value": str(overview.get("total_answers", 0)),
-                "meta": "Completed assistant responses available for review.",
+                "meta": f"Abgeschlossene Antworten von {AGENT_NAME}.",
                 "tone": "violet",
             },
         ],
@@ -269,23 +271,43 @@ def _render_overview(
         compact=compact,
     )
 
-    with st.expander("Current workspace snapshot", expanded=False):
+    with st.expander(f"Aktueller Arbeitsbereich von {AGENT_NAME}", expanded=False):
         st.markdown(f"**Conversation**  \n{title}")
         st.caption(f"Session ID: {session_id}")
-        st.caption(f"Assistant turns in this session: {_safe_assistant_count(conversation)}")
+        st.caption(f"Antworten von {AGENT_NAME} in dieser Sitzung: {_safe_assistant_count(conversation)}")
 
 
 def _render_usage(analytics: dict | None, *, compact: bool = False) -> None:
+    overview = (analytics or {}).get("overview", {})
     timeseries = (analytics or {}).get("timeseries", {})
     conversations = timeseries.get("conversations", [])
     questions = timeseries.get("questions", [])
     answers = timeseries.get("answers", [])
 
-    st.markdown('<div class="analytics-section-title">Usage trends</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="analytics-section-title">Nutzungstrends von {AGENT_NAME}</div>', unsafe_allow_html=True)
     st.markdown(
-        '<div class="analytics-section-copy">Click this tab to inspect how conversation volume, question load, and answer activity evolve over time.</div>',
+        f'<div class="analytics-section-copy">Hier sehen Sie, wie sich Gespräche, Fragen und Antworten von {AGENT_NAME} über die Zeit entwickeln.</div>',
         unsafe_allow_html=True,
     )
+
+    _render_metric_row(
+        [
+            {
+                "label": "Kumulative Tokens",
+                "value": f"{int(overview.get('total_tokens', 0) or 0):,}",
+                "meta": f"Durchschnitt pro Antwort: {float(overview.get('avg_tokens_per_answer', 0.0) or 0.0):.1f}",
+                "tone": "amber",
+            },
+            {
+                "label": "Kumulative Kosten",
+                "value": f"${float(overview.get('total_cost_usd', 0.0) or 0.0):.4f}",
+                "meta": "Aus den gespeicherten Token-Nutzungsdaten berechnet.",
+                "tone": "emerald",
+            },
+        ],
+        compact=compact,
+    )
+
     if conversations:
         merged = []
         question_map = {row["date"]: row["count"] for row in questions}
@@ -307,7 +329,7 @@ def _render_usage(analytics: dict | None, *, compact: bool = False) -> None:
                 st.caption("Questions and answers by day")
                 st.dataframe(merged, hide_index=True, width="stretch")
     else:
-        st.info("No conversation analytics are available yet.")
+        st.info(f"Für {AGENT_NAME} sind noch keine Gesprächsanalysen verfügbar.")
 
 
 def _render_distribution_block(title: str, rows: list[dict]) -> None:
@@ -315,7 +337,7 @@ def _render_distribution_block(title: str, rows: list[dict]) -> None:
     if rows:
         st.dataframe(rows, hide_index=True, width="stretch")
     else:
-        st.info("No data available yet.")
+        st.info("Noch keine Daten verfügbar.")
 
 
 def _render_rag_process(analytics: dict | None, *, compact: bool = False) -> None:
@@ -323,9 +345,9 @@ def _render_rag_process(analytics: dict | None, *, compact: bool = False) -> Non
     current_session = (analytics or {}).get("current_session") or {}
     rag_status = distributions.get("rag_status", [])
 
-    st.markdown('<div class="analytics-section-title">RAG process monitor</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="analytics-section-title">So arbeitet {AGENT_NAME}</div>', unsafe_allow_html=True)
     st.markdown(
-        '<div class="analytics-section-copy">Click this tab to review the retrieval-and-generation pipeline performance, step outcomes, and current-session diagnostics.</div>',
+        f'<div class="analytics-section-copy">Hier können Sie nachvollziehen, wie {AGENT_NAME} sucht, bewertet und Antworten erzeugt.</div>',
         unsafe_allow_html=True,
     )
 
@@ -409,7 +431,7 @@ def _render_diagnostics(
             _render_distribution_block("RAG step status", distributions.get("rag_status", []))
             _render_distribution_block("Top sessions by cost", tables.get("top_sessions", []))
 
-    with st.expander("Context for the current workspace", expanded=False):
+    with st.expander(f"Kontext für den aktuellen Arbeitsbereich von {AGENT_NAME}", expanded=False):
         st.json(
             {
                 "session_id": (conversation or {}).get("session_id"),
@@ -438,18 +460,18 @@ def render_analytics_dashboard(
             """
             <div class="analytics-shell">
                 <div class="analytics-hero">
-                    <div class="analytics-eyebrow">Advanced analytics</div>
-                    <div class="analytics-title">Clinical assistant intelligence hub</div>
-                    <div class="analytics-subtitle">A cleaner, more visual workspace for usage metrics, RAG process review, and operational diagnostics.</div>
+                    <div class="analytics-eyebrow">Ola Analytics</div>
+                    <div class="analytics-title">Das Analysezentrum von Ola</div>
+                    <div class="analytics-subtitle">Ein klarer, visueller Arbeitsbereich für Nutzung, Suchprozess, Internetrecherche und technische Diagnostik.</div>
                 </div>
             </div>
             """,
             unsafe_allow_html=True,
         )
         if error:
-            st.warning(f"Analytics service unavailable: {error}")
+            st.warning(f"Ola Analytics ist aktuell nicht erreichbar: {error}")
 
-        tab_labels = ["Overview", "Usage", "RAG", "Diagnostics"] if compact else ["Overview", "Usage", "RAG Process", "Diagnostics"]
+        tab_labels = ["Überblick", "Nutzung", "Olas Denken", "Diagnostik"] if compact else ["Überblick", "Nutzung", "Olas Denken", "Diagnostik"]
         overview_tab, usage_tab, rag_tab, diagnostics_tab = st.tabs(tab_labels)
 
         with overview_tab:

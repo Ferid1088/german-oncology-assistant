@@ -13,7 +13,7 @@ API_URL = os.getenv("API_URL", "http://localhost:8000")
 API_KEY = os.getenv("API_KEY", "dev-secret-key")
 
 st.set_page_config(
-    page_title="Onkologie Leitlinien-Assistent",
+    page_title="Ola · Onkologie-Assistent",
     page_icon="🏥",
     layout="wide",
 )
