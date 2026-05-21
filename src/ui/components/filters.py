@@ -32,18 +32,3 @@ def render_filters() -> dict:
         "guideline_id": "" if guideline == "Alle" else guideline,
         "grade": "" if grade == "Alle" else grade,
     }
-
-
-def render_feedback_buttons(session_id: str, query: str, api_url: str, api_key: str) -> None:
-    col1, col2 = st.columns([1, 1])
-    import httpx
-    with col1:
-        if st.button("👍 Hilfreich"):
-            httpx.post(f"{api_url}/feedback", json={
-                "session_id": session_id, "query": query, "rating": 1
-            }, headers={"X-API-Key": api_key})
-    with col2:
-        if st.button("👎 Nicht hilfreich"):
-            httpx.post(f"{api_url}/feedback", json={
-                "session_id": session_id, "query": query, "rating": -1
-            }, headers={"X-API-Key": api_key})

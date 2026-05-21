@@ -7,7 +7,7 @@ import streamlit as st
 from src.ui.components.analytics_dashboard import render_analytics_dashboard
 from src.ui.components.source_cards import render_source_cards, render_tool_calls
 from src.ui.components.inline_citations import annotate_citations
-from src.ui.components.filters import render_filters, render_feedback_buttons
+from src.ui.components.filters import render_filters
 from src.ui.components.insights_panels import (
     render_external_search_panel,
     render_rag_process_panel,
@@ -301,6 +301,67 @@ def _load_conversations(api_url: str, api_key: str) -> dict[str, dict]:
     return {conversation["session_id"]: conversation for conversation in conversations}
 
 
+def _merge_conversation_metadata(
+    existing_conversations: dict[str, dict],
+    fresh_conversations: dict[str, dict],
+) -> dict[str, dict]:
+    merged: dict[str, dict] = {}
+
+    for session_id, fresh_conversation in fresh_conversations.items():
+        existing_conversation = existing_conversations.get(session_id)
+        if not existing_conversation:
+            merged[session_id] = fresh_conversation
+            continue
+
+        merged_conversation = dict(fresh_conversation)
+        existing_messages = existing_conversation.get("messages", [])
+        fresh_messages = fresh_conversation.get("messages", [])
+        merged_messages: list[dict] = []
+
+        for index, fresh_message in enumerate(fresh_messages):
+            merged_message = dict(fresh_message)
+            if index < len(existing_messages):
+                existing_message = existing_messages[index]
+                if existing_message.get("role") == fresh_message.get("role"):
+                    for key in (
+                        "citations",
+                        "disclaimer",
+                        "tool_calls",
+                        "rag_trace",
+                        "token_usage",
+                        "external_search_snippets",
+                    ):
+                        if key in existing_message:
+                            merged_message[key] = existing_message[key]
+            merged_messages.append(merged_message)
+
+        merged_conversation["messages"] = merged_messages
+        merged[session_id] = merged_conversation
+
+    return merged
+
+
+def _render_conversation_message(message: dict) -> None:
+    with st.chat_message(message["role"]):
+        if message.get("role") != "assistant":
+            st.markdown(message.get("content", ""))
+            return
+
+        citations = message.get("citations", [])
+        if not isinstance(citations, list):
+            citations = []
+
+        content = message.get("content", "")
+        rendered_content = annotate_citations(content, citations) if citations else content
+        st.markdown(rendered_content, unsafe_allow_html=bool(citations))
+
+        disclaimer = message.get("disclaimer", "")
+        if disclaimer:
+            st.markdown(disclaimer)
+
+        render_source_cards(citations)
+
+
 def _show_backend_unavailable(api_url: str, error: Exception) -> None:
     st.title("Onkologie Leitlinien-Assistent")
     st.error(
@@ -394,7 +455,10 @@ def _sync_conversations(api_url: str, api_key: str) -> bool:
 
     st.session_state.backend_available = True
     st.session_state.backend_error = ""
-    st.session_state.conversations = conversations
+    st.session_state.conversations = _merge_conversation_metadata(
+        st.session_state.get("conversations", {}),
+        conversations,
+    )
 
     if not conversations:
         st.session_state.active_id = _create_conversation(api_url, api_key)
@@ -538,10 +602,10 @@ def render_chat_page(api_url: str, api_key: str) -> None:
     query = None
 
     with chat_col:
-        for msg in conv["messages"]:
-            with st.chat_message(msg["role"]):
-                st.markdown(msg["content"])
-
+        messages_container = st.container()
+        with messages_container:
+            for msg in conv["messages"]:
+                _render_conversation_message(msg)
         query = st.chat_input("Stellen Sie Ihre Frage zu den Leitlinien...")
 
     if analytics_col is not None:
@@ -565,12 +629,12 @@ def render_chat_page(api_url: str, api_key: str) -> None:
     if not conv["messages"]:
         conv["title"] = query[:40] + ("..." if len(query) > 40 else "")
 
-    conv["messages"].append({"role": "user", "content": query})
-    with chat_col:
-        with st.chat_message("user"):
-            st.markdown(query)
+    user_message = {"role": "user", "content": query}
+    conv["messages"].append(user_message)
+    with messages_container:
+        _render_conversation_message(user_message)
 
-    with chat_col:
+    with messages_container:
         with st.chat_message("assistant"):
             with st.spinner("Suche in den Leitlinien..."):
                 try:
@@ -614,7 +678,6 @@ def render_chat_page(api_url: str, api_key: str) -> None:
                             st.markdown(payload.get("disclaimer", ""))
                             render_source_cards(citations)
                             _render_request_diagnostics(payload)
-                            render_feedback_buttons(conv["session_id"], query, api_url, api_key)
                         with side_col:
                             usage_panel, rag_panel, tools_panel, web_panel = st.tabs(
                                 ["Usage", "RAG Process", "Tools", "Web"]
@@ -647,6 +710,18 @@ def render_chat_page(api_url: str, api_key: str) -> None:
                                 )
                                 render_external_search_panel(external_search_snippets)
                         answer_text = _combine_answer_parts(pro_raw, plain_raw)
+                        conv["messages"].append(
+                            {
+                                "role": "assistant",
+                                "content": answer_text,
+                                "citations": citations,
+                                "disclaimer": payload.get("disclaimer", ""),
+                                "tool_calls": tool_calls,
+                                "rag_trace": rag_trace,
+                                "token_usage": token_usage,
+                                "external_search_snippets": external_search_snippets,
+                            }
+                        )
                     elif payload and payload.get("blocked"):
                         _render_validation_feedback(payload)
                         _render_safety_panel(payload)
@@ -669,11 +744,17 @@ def render_chat_page(api_url: str, api_key: str) -> None:
                             render_rag_process_panel(payload.get("rag_trace", []), expand_steps=True)
                         _render_request_diagnostics(payload)
                         answer_text = _combine_answer_parts(payload.get("answer_professional", ""), plain_raw)
+                        conv["messages"].append(
+                            {
+                                "role": "assistant",
+                                "content": answer_text,
+                                "citations": payload.get("citations", []),
+                                "disclaimer": payload.get("disclaimer", ""),
+                            }
+                        )
                     else:
                         st.error("Keine Antwort erhalten.")
                         answer_text = ""
-
-                    conv["messages"].append({"role": "assistant", "content": answer_text})
 
                 except httpx.HTTPStatusError as e:
                     response = e.response
@@ -701,6 +782,8 @@ def render_chat_page(api_url: str, api_key: str) -> None:
                         conv["messages"].append({
                             "role": "assistant",
                             "content": _combine_answer_parts(payload.get("answer_professional", ""), plain_raw),
+                            "citations": [],
+                            "disclaimer": payload.get("disclaimer", ""),
                         })
                     else:
                         st.error(f"Fehler: {e}")
