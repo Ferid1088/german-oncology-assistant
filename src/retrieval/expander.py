@@ -4,7 +4,9 @@ from src.citations import merge_page_numbers, normalize_page_numbers
 from src.retrieval.search import RetrievedChunk
 
 MILVUS_URI = os.getenv("MILVUS_URI") or "./milvus.db"
-COLLECTION = os.getenv("MILVUS_COLLECTION", "oncology_guidelines"
+COLLECTION = os.getenv("MILVUS_COLLECTION", "oncology_guidelines")
+
+
 def expand_to_parents(
     chunks: list[RetrievedChunk],
     client: MilvusClient | None = None,
