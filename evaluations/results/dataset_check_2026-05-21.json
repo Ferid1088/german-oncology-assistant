@@ -1,0 +1,157 @@
+{
+  "timestamp": "2026-05-21",
+  "dataset_path": "/Users/feri/Desktop/Sprint_2/project/data/eval/evaluation-dataset.json",
+  "schema_valid": true,
+  "schema_errors": [],
+  "total_items": 44,
+  "distribution": {
+    "recommendation": 10,
+    "factual": 6,
+    "evidence": 5,
+    "comparison": 4,
+    "drug_lookup": 3,
+    "external": 2
+  },
+  "target_distribution": {
+    "recommendation": 10,
+    "factual": 6,
+    "evidence": 5,
+    "comparison": 4,
+    "drug_lookup": 3,
+    "external": 2
+  },
+  "distribution_match": true,
+  "missing_splits": [],
+  "bootstrap_items": 30,
+  "items_ready_for_eval": 14,
+  "readiness_by_split": {
+    "eval": {
+      "total": 30,
+      "ready": 3,
+      "bootstrap": 27
+    },
+    "guardrail": {
+      "total": 10,
+      "ready": 10,
+      "bootstrap": 0
+    },
+    "smoke": {
+      "total": 4,
+      "ready": 1,
+      "bootstrap": 3
+    },
+    "ab_test": {
+      "total": 30,
+      "ready": 3,
+      "bootstrap": 27
+    }
+  },
+  "bootstrap_reason_counts": {
+    "source_chunk_ids": 57,
+    "gold_chunk_ids": 57,
+    "required_citations": 57
+  },
+  "bootstrap_examples": [
+    {
+      "id": "eval-002-recommendation",
+      "dataset_split": "eval",
+      "reasons": [
+        "source_chunk_ids",
+        "gold_chunk_ids",
+        "required_citations"
+      ]
+    },
+    {
+      "id": "eval-003-recommendation",
+      "dataset_split": "eval",
+      "reasons": [
+        "source_chunk_ids",
+        "gold_chunk_ids",
+        "required_citations"
+      ]
+    },
+    {
+      "id": "eval-004-recommendation",
+      "dataset_split": "eval",
+      "reasons": [
+        "source_chunk_ids",
+        "gold_chunk_ids",
+        "required_citations"
+      ]
+    },
+    {
+      "id": "eval-005-recommendation",
+      "dataset_split": "eval",
+      "reasons": [
+        "source_chunk_ids",
+        "gold_chunk_ids",
+        "required_citations"
+      ]
+    },
+    {
+      "id": "eval-006-recommendation",
+      "dataset_split": "eval",
+      "reasons": [
+        "source_chunk_ids",
+        "gold_chunk_ids",
+        "required_citations"
+      ]
+    },
+    {
+      "id": "eval-008-recommendation",
+      "dataset_split": "eval",
+      "reasons": [
+        "source_chunk_ids",
+        "gold_chunk_ids",
+        "required_citations"
+      ]
+    },
+    {
+      "id": "eval-010-recommendation",
+      "dataset_split": "eval",
+      "reasons": [
+        "source_chunk_ids",
+        "gold_chunk_ids",
+        "required_citations"
+      ]
+    },
+    {
+      "id": "eval-011-factual",
+      "dataset_split": "eval",
+      "reasons": [
+        "source_chunk_ids",
+        "gold_chunk_ids",
+        "required_citations"
+      ]
+    },
+    {
+      "id": "eval-012-factual",
+      "dataset_split": "eval",
+      "reasons": [
+        "source_chunk_ids",
+        "gold_chunk_ids",
+        "required_citations"
+      ]
+    },
+    {
+      "id": "eval-013-factual",
+      "dataset_split": "eval",
+      "reasons": [
+        "source_chunk_ids",
+        "gold_chunk_ids",
+        "required_citations"
+      ]
+    }
+  ],
+  "selected_split": "smoke",
+  "selected_split_total_items": 4,
+  "selected_split_ready_items": 1,
+  "selected_split_bootstrap_items": 3,
+  "clarification_items": 3,
+  "recommendation_items_with_metadata": 7,
+  "field_issues": [],
+  "blocking_ok": true,
+  "readiness_ok": false,
+  "overall_ok": false,
+  "summary": "44 items total. Schema: valid. Distribution: matches target. Bootstrap items (seed:* chunk IDs): 30/44. Ready for live eval: 14. Selected split 'smoke': 4 items, 1 live-ready. Readiness: warnings present — bootstrap items still need manual curation before full live evaluation."
+}

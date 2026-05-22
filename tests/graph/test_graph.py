@@ -77,11 +77,15 @@ def test_clarification_response_returns_single_plain_message():
 
     result = _clarification_response(
         {
+            "missing_clinical_dimensions": ["disease_stage", "therapy_setting"],
             "clarification_rationale": "Die klinische Situation ist noch zu unspezifisch.",
             "expected_clarification": "Bitte präzisieren Sie, ob es um eine adjuvante oder metastasierte Situation geht.",
         }
     )
 
+    assert result["requires_clarification"] is True
+    assert result["missing_clinical_dimensions"] == ["disease_stage", "therapy_setting"]
+    assert result["expected_clarification"].startswith("Bitte präzisieren Sie")
     assert result["answer_professional"].startswith("Ich brauche vor der Leitlinienrecherche")
     assert "Die klinische Situation ist noch zu unspezifisch." in result["answer_professional"]
     assert "Bitte präzisieren Sie, ob es um eine adjuvante oder metastasierte Situation geht." in result["answer_professional"]

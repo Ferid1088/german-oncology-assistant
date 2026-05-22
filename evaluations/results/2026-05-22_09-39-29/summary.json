@@ -1,0 +1,59 @@
+{
+  "run_id": "2026-05-22_09-39-29",
+  "timestamp": "2026-05-22T07:39:39.215953+00:00",
+  "api_url": "http://localhost:8000",
+  "split": "eval",
+  "total_items": 3,
+  "completed": 3,
+  "failed": 0,
+  "dataset_readiness": {
+    "ready": 3
+  },
+  "error_types": {},
+  "metrics": {
+    "behavioral_match_rate": 1.0,
+    "clarification_correct_rate": 1.0,
+    "citation_coverage_mean": 1.0,
+    "tool_usage_match_rate": null,
+    "blocked_correct_rate": null,
+    "answer_presence_rate": 1.0,
+    "citation_presence_rate": null,
+    "plain_language_present_rate": null,
+    "expected_sections_coverage_mean": 1.0,
+    "recommendation_metadata_match_mean": null,
+    "claim_verdict_correct_rate": null,
+    "retrieved_chunk_recall_mean": null,
+    "retrieved_chunk_precision_mean": null,
+    "top_gold_chunk_hit_rate": null,
+    "retrieved_section_recall_mean": null,
+    "retrieved_page_recall_mean": null,
+    "citation_chunk_recall_mean": null,
+    "answer_token_overlap_mean": null,
+    "avg_response_time_ms": 1796.5,
+    "total_tokens_used": 5804
+  },
+  "ragas": {
+    "status": "skipped",
+    "reason": "No eligible completed items with reference answers and retrieved contexts.",
+    "eligible_records": 0
+  },
+  "by_question_type": {
+    "recommendation": {
+      "count": 3,
+      "behavioral_match_rate": 1.0,
+      "token_overlap_mean": null
+    }
+  },
+  "by_difficulty": {
+    "medium": {
+      "count": 2,
+      "behavioral_match_rate": 1.0,
+      "token_overlap_mean": null
+    },
+    "easy": {
+      "count": 1,
+      "behavioral_match_rate": 1.0,
+      "token_overlap_mean": null
+    }
+  }
+}

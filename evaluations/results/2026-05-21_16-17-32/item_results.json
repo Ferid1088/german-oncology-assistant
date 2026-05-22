@@ -1,0 +1,245 @@
+[
+  {
+    "item_id": "eval-001-recommendation",
+    "question": "Welche Chemotherapie wird empfohlen?",
+    "question_type": "recommendation",
+    "difficulty": "medium",
+    "guideline_scope": [
+      "mamma",
+      "krk",
+      "lunge",
+      "prosta"
+    ],
+    "requires_clarification": true,
+    "expected_behavior": "ask_clarification",
+    "status": "completed",
+    "expected_answer": null,
+    "actual_answer": "Ich brauche vor der Leitlinienrecherche noch eine Präzisierung Ihrer Frage.\n\nDie Anfrage ist in-domain, aber klinisch zu unspezifisch; die Empfehlung hängt von Tumorart und Behandlungssituation ab.\n\nBitte präzisieren Sie, für welche Tumorart und klinische Situation Sie die Chemotherapieempfehlung suchen, zum Beispiel adjuvant, neoadjuvant oder metastasiert.",
+    "actual_answer_plain": "",
+    "response_time_ms": 8463.0,
+    "token_usage": {
+      "input_tokens": 1827,
+      "output_tokens": 215,
+      "total_tokens": 2042,
+      "cost_usd": 0.001086,
+      "currency": "USD",
+      "calls": [
+        {
+          "step": "rewrite",
+          "model": "google/gemini-2.5-flash",
+          "input_tokens": 1827,
+          "output_tokens": 215,
+          "total_tokens": 2042,
+          "cost_usd": 0.001086,
+          "duration_ms": 8310.53
+        }
+      ]
+    },
+    "metrics": {
+      "behavioral_match": false,
+      "clarification_correct": false,
+      "citation_coverage": 1.0,
+      "tool_usage_match": null,
+      "blocked_correct": null,
+      "token_overlap_f1": 0.0,
+      "char_overlap": 0.0
+    },
+    "api_requires_clarification": false,
+    "api_blocked": false,
+    "api_citations_count": 0,
+    "api_tool_calls": [],
+    "safety_warning": null
+  },
+  {
+    "item_id": "eval-002-recommendation",
+    "question": "Welche Empfehlung nennt die S3-Leitlinie Mammakarzinom zur adjuvanten endokrinen Therapie?",
+    "question_type": "recommendation",
+    "difficulty": "medium",
+    "guideline_scope": [
+      "mamma"
+    ],
+    "requires_clarification": false,
+    "expected_behavior": "answer",
+    "status": "completed",
+    "expected_answer": "S3-Leitlinie Mammakarzinom enthält eine Empfehlung zu adjuvante endokrine Therapie. Für den finalen Goldstandard sollten Wortlaut, Empfehlungsgrad und tragende Evidenz gegen die referenzierten Gold-Chunks validiert werden.",
+    "actual_answer": "Patienten mit einem Hormonrezeptor-positiven Mammakarzinom sollen in der Regel eine adjuvante endokrine Therapie mit Tamoxifen über 5 Jahre erhalten [1]. Adjuvante endokrine Therapien wie Tamoxifen reduzieren die Wahrscheinlichkeit eines Rezidivs relativ um ca. 40% und die Wahrscheinlichkeit des Versterbens relativ um ca. 30% [5]. Diese relative Risikoreduktion ist unabhängig vom Alter der Patientin, dem Tumorstadium und der Vortherapie, bezieht sich allerdings immer auf Frauen mit einem Hormonrezeptor-positiven Mammakarzinom [5].",
+    "actual_answer_plain": "Für Patientinnen mit Brustkrebs, der Hormonrezeptoren hat, wird empfohlen, Tamoxifen als unterstützende Therapie meistens über fünf Jahre einzunehmen [1]. Diese Behandlungen wie Tamoxifen verringern das Risiko, dass der Krebs wiederkommt, um etwa 40% und das Risiko zu sterben um etwa 30% [5]. Diese Risikosenkung gilt für Frauen mit hormonrezeptorpositivem Brustkrebs und ist unabhängig vom Alter der Patientin, wie weit der Tumor fortgeschritten ist oder ob bereits eine Chemotherapie stattfand [5].",
+    "response_time_ms": 106713.5,
+    "token_usage": {
+      "input_tokens": 8027,
+      "output_tokens": 636,
+      "total_tokens": 8663,
+      "cost_usd": 0.003998,
+      "currency": "USD",
+      "calls": [
+        {
+          "step": "rewrite",
+          "model": "google/gemini-2.5-flash",
+          "input_tokens": 2002,
+          "output_tokens": 116,
+          "total_tokens": 2118,
+          "cost_usd": 0.000891,
+          "duration_ms": 10075.58
+        },
+        {
+          "step": "turn_router",
+          "model": "google/gemini-2.5-flash",
+          "input_tokens": 675,
+          "output_tokens": 32,
+          "total_tokens": 707,
+          "cost_usd": 0.000282,
+          "duration_ms": 11811.26
+        },
+        {
+          "step": "agent_iteration_1",
+          "model": "google/gemini-2.5-flash",
+          "input_tokens": 617,
+          "output_tokens": 18,
+          "total_tokens": 635,
+          "cost_usd": 0.00023,
+          "duration_ms": 1342.56
+        },
+        {
+          "step": "agent_iteration_2",
+          "model": "google/gemini-2.5-flash",
+          "input_tokens": 3284,
+          "output_tokens": 19,
+          "total_tokens": 3303,
+          "cost_usd": 0.001033,
+          "duration_ms": 37375.78
+        },
+        {
+          "step": "answer_extract",
+          "model": "google/gemini-2.5-flash",
+          "input_tokens": 971,
+          "output_tokens": 177,
+          "total_tokens": 1148,
+          "cost_usd": 0.000734,
+          "duration_ms": 12129.19
+        },
+        {
+          "step": "answer_synthesize",
+          "model": "google/gemini-2.5-flash",
+          "input_tokens": 478,
+          "output_tokens": 274,
+          "total_tokens": 752,
+          "cost_usd": 0.000828,
+          "duration_ms": 9861.6
+        }
+      ]
+    },
+    "metrics": {
+      "behavioral_match": true,
+      "clarification_correct": null,
+      "citation_coverage": 1.0,
+      "tool_usage_match": true,
+      "blocked_correct": null,
+      "token_overlap_f1": 0.17721518987341772,
+      "char_overlap": 1.0
+    },
+    "api_requires_clarification": false,
+    "api_blocked": false,
+    "api_citations_count": 2,
+    "api_tool_calls": [
+      "search_guidelines",
+      "web_search_snippets"
+    ],
+    "safety_warning": null
+  },
+  {
+    "item_id": "eval-003-recommendation",
+    "question": "Welche Empfehlung beschreibt die Leitlinie Mammakarzinom zur psychoonkologischen Unterstützung?",
+    "question_type": "recommendation",
+    "difficulty": "easy",
+    "guideline_scope": [
+      "mamma"
+    ],
+    "requires_clarification": false,
+    "expected_behavior": "answer",
+    "status": "completed",
+    "expected_answer": "S3-Leitlinie Mammakarzinom enthält eine Empfehlung zu psychoonkologische Unterstützung. Für den finalen Goldstandard sollten Wortlaut, Empfehlungsgrad und tragende Evidenz gegen die referenzierten Gold-Chunks validiert werden.",
+    "actual_answer": "Die psychoonkologische Versorgung von Patientinnen mit Mammakarzinom beinhaltet eine patientengerechte Information und Beratung, eine qualifizierte psychologische Diagnostik und Bedarfsfeststellung sowie eine gezielte psychoonkologische Behandlung zur Unterstützung der Bewältigung der Erkrankungs- und Behandlungsfolgen [1]. Alle Patientinnen und ihre Angehörigen sollen frühzeitig und krankheitsbegleitend über Möglichkeiten psychoonkologischer Hilfestellungen informiert werden [5]. Die Angehörigen sind in die psychoonkologische Betreuung mit einzubeziehen [1]. Der psychosoziale Behandlungsbedarf wird individuell festgestellt, da die Mannigfaltigkeit und Komplexität möglicher psychischer Beeinträchtigungen bei einer Brustkrebserkrankung in unterschiedlichen Krankheits- und Behandlungsphasen dies erfordern [3]. Eine psychoonkologische Fachkraft wird bei Bedarf einbezogen und auf Unterstützungsangebote der Selbsthilfe hingewiesen [3].",
+    "actual_answer_plain": "Die Leitlinie empfiehlt, dass Frauen mit Brustkrebs psychoonkologische Hilfe erhalten, die eine Information und Beratung, eine psychologische Untersuchung des Bedarfs und eine gezielte Behandlung zur Bewältigung der Krankheit und Therapie umfasst [1]. Frauen und ihre Familien sollen frühzeitig über die verschiedenen Hilfsangebote informiert werden [5]. Die Familie soll ebenfalls in die Betreuung einbezogen werden [1]. Es ist wichtig, den Bedarf an psychologischer Unterstützung individuell zu klären, da die psychischen Probleme bei Brustkrebs sehr unterschiedlich und komplex sein können [3]. Bei Bedarf sollte eine spezialisierte Fachkraft hinzugezogen und auf Selbsthilfegruppen verwiesen werden [3].",
+    "response_time_ms": 52101.1,
+    "token_usage": {
+      "input_tokens": 7865,
+      "output_tokens": 1065,
+      "total_tokens": 8930,
+      "cost_usd": 0.005022,
+      "currency": "USD",
+      "calls": [
+        {
+          "step": "rewrite",
+          "model": "google/gemini-2.5-flash",
+          "input_tokens": 1927,
+          "output_tokens": 107,
+          "total_tokens": 2034,
+          "cost_usd": 0.000846,
+          "duration_ms": 19381.12
+        },
+        {
+          "step": "turn_router",
+          "model": "google/gemini-2.5-flash",
+          "input_tokens": 598,
+          "output_tokens": 32,
+          "total_tokens": 630,
+          "cost_usd": 0.000259,
+          "duration_ms": 1163.75
+        },
+        {
+          "step": "agent_iteration_1",
+          "model": "google/gemini-2.5-flash",
+          "input_tokens": 610,
+          "output_tokens": 16,
+          "total_tokens": 626,
+          "cost_usd": 0.000223,
+          "duration_ms": 6923.58
+        },
+        {
+          "step": "agent_iteration_2",
+          "model": "google/gemini-2.5-flash",
+          "input_tokens": 3198,
+          "output_tokens": 305,
+          "total_tokens": 3503,
+          "cost_usd": 0.001722,
+          "duration_ms": 8976.2
+        },
+        {
+          "step": "answer_extract",
+          "model": "google/gemini-2.5-flash",
+          "input_tokens": 989,
+          "output_tokens": 249,
+          "total_tokens": 1238,
+          "cost_usd": 0.000919,
+          "duration_ms": 1606.98
+        },
+        {
+          "step": "answer_synthesize",
+          "model": "google/gemini-2.5-flash",
+          "input_tokens": 543,
+          "output_tokens": 356,
+          "total_tokens": 899,
+          "cost_usd": 0.001053,
+          "duration_ms": 6954.9
+        }
+      ]
+    },
+    "metrics": {
+      "behavioral_match": true,
+      "clarification_correct": null,
+      "citation_coverage": 1.0,
+      "tool_usage_match": true,
+      "blocked_correct": null,
+      "token_overlap_f1": 0.14432989690721648,
+      "char_overlap": 1.0
+    },
+    "api_requires_clarification": false,
+    "api_blocked": false,
+    "api_citations_count": 3,
+    "api_tool_calls": [
+      "search_guidelines",
+      "web_search_snippets"
+    ],
+    "safety_warning": null
+  }
+]

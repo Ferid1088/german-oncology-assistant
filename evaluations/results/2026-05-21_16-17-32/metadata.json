@@ -1,0 +1,9 @@
+{
+  "run_id": "2026-05-21_16-17-32",
+  "api_url": "http://localhost:8000",
+  "split": "eval",
+  "dataset": "/Users/feri/Desktop/Sprint_2/project/data/eval/evaluation-dataset.json",
+  "total_items": 3,
+  "limit": 3,
+  "started_at": "2026-05-21T14:17:32.204487+00:00"
+}

@@ -1,0 +1,71 @@
+[
+  {
+    "item_id": "eval-001-recommendation",
+    "question": "Welche Chemotherapie wird empfohlen?",
+    "question_type": "recommendation",
+    "difficulty": "medium",
+    "guideline_scope": [
+      "mamma",
+      "krk",
+      "lunge",
+      "prosta"
+    ],
+    "requires_clarification": true,
+    "expected_behavior": "ask_clarification",
+    "status": "completed",
+    "expected_answer": null,
+    "actual_answer": "Ich brauche vor der Leitlinienrecherche noch eine Präzisierung Ihrer Frage.\n\nDie Anfrage ist in-domain, aber klinisch zu unspezifisch; die Empfehlung hängt von Tumorart und Behandlungssituation ab.\n\nBitte präzisieren Sie, für welche Tumorart und klinische Situation Sie die Chemotherapieempfehlung suchen, zum Beispiel adjuvant, neoadjuvant oder metastasiert.",
+    "actual_answer_plain": "",
+    "response_time_ms": 19841.3,
+    "token_usage": {
+      "input_tokens": 1744,
+      "output_tokens": 211,
+      "total_tokens": 1955,
+      "cost_usd": 0.001051,
+      "currency": "USD",
+      "calls": [
+        {
+          "step": "rewrite",
+          "model": "google/gemini-2.5-flash",
+          "input_tokens": 1744,
+          "output_tokens": 211,
+          "total_tokens": 1955,
+          "cost_usd": 0.001051,
+          "duration_ms": 19747.07
+        }
+      ]
+    },
+    "metrics": {
+      "behavioral_match": false,
+      "clarification_correct": false,
+      "citation_coverage": 1.0,
+      "tool_usage_match": null,
+      "blocked_correct": null,
+      "token_overlap_f1": 0.0,
+      "char_overlap": 0.0
+    },
+    "api_requires_clarification": false,
+    "api_blocked": false,
+    "api_citations_count": 0,
+    "api_tool_calls": [],
+    "safety_warning": null
+  },
+  {
+    "item_id": "eval-002-recommendation",
+    "question": "Welche Empfehlung nennt die S3-Leitlinie Mammakarzinom zur adjuvanten endokrinen Therapie?",
+    "question_type": "recommendation",
+    "difficulty": "medium",
+    "status": "error",
+    "error": "timed out",
+    "response_time_ms": 60015.0
+  },
+  {
+    "item_id": "eval-003-recommendation",
+    "question": "Welche Empfehlung beschreibt die Leitlinie Mammakarzinom zur psychoonkologischen Unterstützung?",
+    "question_type": "recommendation",
+    "difficulty": "easy",
+    "status": "error",
+    "error": "timed out",
+    "response_time_ms": 60035.3
+  }
+]

@@ -77,6 +77,10 @@ def _clarification_response(state: RAGState) -> dict:
     intro = "Ich brauche vor der Leitlinienrecherche noch eine Präzisierung Ihrer Frage."
     clarification_text = "\n\n".join(part for part in [intro, rationale, followup] if part)
     return {
+        "requires_clarification": True,
+        "missing_clinical_dimensions": list(state.get("missing_clinical_dimensions", [])),
+        "clarification_rationale": rationale or None,
+        "expected_clarification": followup,
         "answer_professional": clarification_text,
         "answer_plain": "",
         "citations": [],
@@ -86,7 +90,10 @@ def _clarification_response(state: RAGState) -> dict:
             name="clarification",
             status="ok",
             summary="The system asked the user for more clinical detail before retrieval.",
-            details={"expected_clarification": followup},
+            details={
+                "expected_clarification": followup,
+                "missing_clinical_dimensions": list(state.get("missing_clinical_dimensions", [])),
+            },
         ),
     }
 

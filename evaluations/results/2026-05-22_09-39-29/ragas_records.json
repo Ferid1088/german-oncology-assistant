@@ -1,0 +1,26 @@
+[
+  {
+    "item_id": "eval-001-recommendation",
+    "question": "Welche Chemotherapie wird empfohlen?",
+    "answer": "Ich brauche vor der Leitlinienrecherche noch eine Präzisierung Ihrer Frage.\n\nDie Anfrage ist in-domain, aber klinisch zu unspezifisch; die Empfehlung hängt von Tumorart und Behandlungssituation ab.\n\nBitte präzisieren Sie, für welche Tumorart und klinische Situation Sie die Chemotherapieempfehlung suchen, zum Beispiel adjuvant, neoadjuvant oder metastasiert.",
+    "ground_truth": "",
+    "contexts": [],
+    "eligible": false
+  },
+  {
+    "item_id": "eval-007-recommendation",
+    "question": "Welche Therapie wird beim Lungenkarzinom empfohlen?",
+    "answer": "Ich brauche vor der Leitlinienrecherche noch eine Präzisierung Ihrer Frage.\n\nDie Anfrage ist in-domain, aber klinisch zu unspezifisch; die Empfehlung hängt von Histologie, Stadium, Therapie-Einstellung und molekularem Subtyp ab.\n\nBitte präzisieren Sie, um welche Histologie (z.B. kleinzellig, nicht-kleinzellig), welches Stadium und welche Therapie-Einstellung (z.B. kurativ, palliativ, neoadjuvant, adjuvant) es sich handelt, und ob molekulare Subtypen berücksichtigt werden sollen.",
+    "ground_truth": "",
+    "contexts": [],
+    "eligible": false
+  },
+  {
+    "item_id": "eval-009-recommendation",
+    "question": "Welche Therapie wird beim Prostatakarzinom empfohlen?",
+    "answer": "Ich brauche vor der Leitlinienrecherche noch eine Präzisierung Ihrer Frage.\n\nDie Tumorart ist bekannt, aber die klinische Situation ist noch zu unspezifisch für eine sichere Leitlinienantwort. Eine Empfehlung hängt stark vom Stadium, der Risikogruppe und dem Behandlungsziel ab.\n\nBitte präzisieren Sie, für welches Stadium, welche Risikogruppe und welches Behandlungsziel (z.B. kurativ, palliativ) Sie die Therapieempfehlung suchen.",
+    "ground_truth": "",
+    "contexts": [],
+    "eligible": false
+  }
+]

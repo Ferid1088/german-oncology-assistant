@@ -29,12 +29,18 @@ def test_generate_eval_dataset_script(tmp_path):
     assert summary["status"] == "ok"
 
     dataset_path = tmp_path / "evaluation-dataset.json"
+    guardrail_path = tmp_path / "guardrail-dataset.json"
+    smoke_path = tmp_path / "smoke-dataset.json"
     structure_path = tmp_path / "evaluation-dataset.structure.json"
 
     assert dataset_path.exists()
+    assert guardrail_path.exists()
+    assert smoke_path.exists()
     assert structure_path.exists()
 
     dataset = json.loads(dataset_path.read_text(encoding="utf-8"))
+    guardrail_dataset = json.loads(guardrail_path.read_text(encoding="utf-8"))
+    smoke_dataset = json.loads(smoke_path.read_text(encoding="utf-8"))
     structure = json.loads(structure_path.read_text(encoding="utf-8"))
 
     assert len(dataset) == 30
@@ -69,6 +75,13 @@ def test_generate_eval_dataset_script(tmp_path):
     assert clarification_items
     assert all(item["expected_behavior"] == "ask_clarification" for item in clarification_items)
     assert all(item["expected_clarification"] for item in clarification_items)
+
+    assert len(guardrail_dataset) >= 4
+    assert all(item["dataset_split"] == "guardrail" for item in guardrail_dataset)
+    assert all(item["question_type"] == "guardrail" for item in guardrail_dataset)
+
+    assert len(smoke_dataset) == 4
+    assert all(item["dataset_split"] == "smoke" for item in smoke_dataset)
 
     recommendation_items = [
         item for item in dataset

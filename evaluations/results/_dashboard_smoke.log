@@ -1,0 +1,12 @@
+2026-05-21 20:42:52.597 Uvicorn server started on 127.0.0.1:63166
+
+  You can now view your Streamlit app in your browser.
+
+  URL: http://127.0.0.1:63166
+
+  For better performance, install the Watchdog module:
+
+  $ xcode-select --install
+  $ pip install watchdog
+            
+  Stopping...

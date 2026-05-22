@@ -1,0 +1,33 @@
+{
+  "run_id": "2026-05-21_16-13-01",
+  "timestamp": "2026-05-21T14:15:20.937313+00:00",
+  "api_url": "http://localhost:8000",
+  "split": "eval",
+  "total_items": 3,
+  "completed": 1,
+  "failed": 2,
+  "metrics": {
+    "behavioral_match_rate": 0.0,
+    "clarification_correct_rate": 0.0,
+    "citation_coverage_mean": 1.0,
+    "tool_usage_match_rate": null,
+    "blocked_correct_rate": null,
+    "answer_token_overlap_mean": 0.0,
+    "avg_response_time_ms": 19841.3,
+    "total_tokens_used": 1955
+  },
+  "by_question_type": {
+    "recommendation": {
+      "count": 1,
+      "behavioral_match_rate": 0.0,
+      "token_overlap_mean": 0.0
+    }
+  },
+  "by_difficulty": {
+    "medium": {
+      "count": 1,
+      "behavioral_match_rate": 0.0,
+      "token_overlap_mean": 0.0
+    }
+  }
+}

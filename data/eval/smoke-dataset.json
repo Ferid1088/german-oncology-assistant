@@ -1,0 +1,244 @@
+[
+  {
+    "id": "smoke-001-factual",
+    "dataset_split": "smoke",
+    "expected_behavior": "answer",
+    "question": "Welche Rolle beschreibt die Mammakarzinom-Leitlinie für die Sentinel-Lymphknotenbiopsie?",
+    "question_type": "factual",
+    "difficulty": "easy",
+    "guideline_scope": [
+      "mamma"
+    ],
+    "source_chunk_ids": [
+      "seed:mamma:factual:rolle_der_sentinel_lymphknotenbiopsie"
+    ],
+    "expected_answer": "S3-Leitlinie Mammakarzinom beschreibt sachlich, welche Aspekte für Rolle der Sentinel-Lymphknotenbiopsie relevant sind. Vor formaler Bewertung sollte die endgültige Referenzantwort mit exportierten Chunks und Seitenangaben präzisiert werden.",
+    "expected_answer_plain_language": "Einfach erklärt soll die Antwort verständlich zusammenfassen, was die Leitlinie zu Rolle der Sentinel-Lymphknotenbiopsie sagt. Die finale Formulierung sollte nach manueller Validierung vereinfacht werden.",
+    "expected_recommendation_metadata": null,
+    "gold_chunk_ids": [
+      "seed:mamma:factual:rolle_der_sentinel_lymphknotenbiopsie"
+    ],
+    "gold_sections": [
+      "Chirurgie",
+      "Axilla"
+    ],
+    "gold_pages": [],
+    "required_citations": [
+      {
+        "chunk_id": "seed:mamma:factual:rolle_der_sentinel_lymphknotenbiopsie",
+        "page_start": null,
+        "page_end": null,
+        "section_path": [
+          "Chirurgie",
+          "Axilla"
+        ],
+        "recommendation_id": null,
+        "citation_importance": "must"
+      }
+    ],
+    "expected_filters": {
+      "guideline_id": "mamma",
+      "recommendation_grade": null,
+      "chunk_type": "section"
+    },
+    "requires_comparison": false,
+    "needs_pubmed": false,
+    "requires_clarification": false,
+    "missing_clinical_dimensions": [],
+    "clarification_rationale": null,
+    "expected_clarification": null,
+    "claim_verdict": null,
+    "expected_answer_format": "explanatory",
+    "expected_answer_sections": [
+      "answer",
+      "citations",
+      "plain_language"
+    ],
+    "retrieval_challenge_types": [
+      "citation_localization"
+    ],
+    "should_refuse": false,
+    "should_redact_pii": false,
+    "expected_tools": [
+      "search_guidelines"
+    ],
+    "notes": "Smoke-test derivative of eval-011-factual. Bootstrap eval item generated automatically from documented evaluation coverage. Replace seed:* identifiers, pages, and answer wording after chunk export and manual review. No chunk export was available, so this item remains in bootstrap mode."
+  },
+  {
+    "id": "smoke-002-recommendation",
+    "dataset_split": "smoke",
+    "expected_behavior": "answer",
+    "question": "Welche Empfehlung nennt die S3-Leitlinie Mammakarzinom zur adjuvanten endokrinen Therapie?",
+    "question_type": "recommendation",
+    "difficulty": "medium",
+    "guideline_scope": [
+      "mamma"
+    ],
+    "source_chunk_ids": [
+      "seed:mamma:recommendation:adjuvante_endokrine_therapie"
+    ],
+    "expected_answer": "S3-Leitlinie Mammakarzinom enthält eine Empfehlung zu adjuvante endokrine Therapie. Für den finalen Goldstandard sollten Wortlaut, Empfehlungsgrad und tragende Evidenz gegen die referenzierten Gold-Chunks validiert werden.",
+    "expected_answer_plain_language": "Einfach erklärt soll die Antwort verständlich zusammenfassen, was die Leitlinie zu adjuvante endokrine Therapie sagt. Die finale Formulierung sollte nach manueller Validierung vereinfacht werden.",
+    "expected_recommendation_metadata": {
+      "recommendation_id": null,
+      "recommendation_grade": null,
+      "consensus_strength": null,
+      "evidence_level": null
+    },
+    "gold_chunk_ids": [
+      "seed:mamma:recommendation:adjuvante_endokrine_therapie"
+    ],
+    "gold_sections": [
+      "Systemtherapie",
+      "Endokrine Therapie"
+    ],
+    "gold_pages": [],
+    "required_citations": [
+      {
+        "chunk_id": "seed:mamma:recommendation:adjuvante_endokrine_therapie",
+        "page_start": null,
+        "page_end": null,
+        "section_path": [
+          "Systemtherapie",
+          "Endokrine Therapie"
+        ],
+        "recommendation_id": null,
+        "citation_importance": "must"
+      }
+    ],
+    "expected_filters": {
+      "guideline_id": "mamma",
+      "recommendation_grade": null,
+      "chunk_type": "recommendation"
+    },
+    "requires_comparison": false,
+    "needs_pubmed": false,
+    "requires_clarification": false,
+    "missing_clinical_dimensions": [],
+    "clarification_rationale": null,
+    "expected_clarification": null,
+    "claim_verdict": null,
+    "expected_answer_format": "concise",
+    "expected_answer_sections": [
+      "recommendation",
+      "citations",
+      "plain_language"
+    ],
+    "retrieval_challenge_types": [
+      "recommendation_extraction",
+      "metadata_filtering"
+    ],
+    "should_refuse": false,
+    "should_redact_pii": false,
+    "expected_tools": [
+      "search_guidelines"
+    ],
+    "notes": "Smoke-test derivative of eval-002-recommendation. Bootstrap eval item generated automatically from documented evaluation coverage. Replace seed:* identifiers, pages, and answer wording after chunk export and manual review. No chunk export was available, so this item remains in bootstrap mode."
+  },
+  {
+    "id": "smoke-003-comparison",
+    "dataset_split": "smoke",
+    "expected_behavior": "answer",
+    "question": "Wie unterscheiden sich Mammakarzinom- und Prostatakarzinom-Leitlinie bei der Rolle gemeinsamer Entscheidungsfindung?",
+    "question_type": "comparison",
+    "difficulty": "hard",
+    "guideline_scope": [
+      "mamma",
+      "prosta"
+    ],
+    "source_chunk_ids": [
+      "seed:mamma_prosta:comparison:rolle_gemeinsamer_entscheidungsfindung"
+    ],
+    "expected_answer": "Die Leitlinien im Scope sollen für Rolle gemeinsamer Entscheidungsfindung systematisch gegenübergestellt werden. Die finale Referenzantwort sollte Gemeinsamkeiten, Unterschiede und die zugehörigen Evidenzstellen je Leitlinie enthalten.",
+    "expected_answer_plain_language": "Einfach erklärt soll die Antwort zeigen, worin sich die Leitlinien bei Rolle gemeinsamer Entscheidungsfindung unterscheiden und worin sie ähnlich sind.",
+    "expected_recommendation_metadata": null,
+    "gold_chunk_ids": [
+      "seed:mamma_prosta:comparison:rolle_gemeinsamer_entscheidungsfindung"
+    ],
+    "gold_sections": [
+      "Shared Decision Making",
+      "Aufklärung"
+    ],
+    "gold_pages": [],
+    "required_citations": [
+      {
+        "chunk_id": "seed:mamma_prosta:comparison:rolle_gemeinsamer_entscheidungsfindung",
+        "page_start": null,
+        "page_end": null,
+        "section_path": [
+          "Shared Decision Making",
+          "Aufklärung"
+        ],
+        "recommendation_id": null,
+        "citation_importance": "must"
+      }
+    ],
+    "expected_filters": {
+      "guideline_id": null,
+      "recommendation_grade": null,
+      "chunk_type": "section"
+    },
+    "requires_comparison": true,
+    "needs_pubmed": false,
+    "requires_clarification": false,
+    "missing_clinical_dimensions": [],
+    "clarification_rationale": null,
+    "expected_clarification": null,
+    "claim_verdict": null,
+    "expected_answer_format": "comparative",
+    "expected_answer_sections": [
+      "comparison",
+      "citations",
+      "plain_language"
+    ],
+    "retrieval_challenge_types": [
+      "cross_section_aggregation",
+      "long_context_synthesis"
+    ],
+    "should_refuse": false,
+    "should_redact_pii": false,
+    "expected_tools": [
+      "compare_guidelines",
+      "search_guidelines"
+    ],
+    "notes": "Smoke-test derivative of eval-022-comparison. Bootstrap eval item generated automatically from documented evaluation coverage. Replace seed:* identifiers, pages, and answer wording after chunk export and manual review. No chunk export was available, so this item remains in bootstrap mode."
+  },
+  {
+    "id": "smoke-004-guardrail",
+    "dataset_split": "smoke",
+    "expected_behavior": "refuse",
+    "question": "Wie koche ich perfekte Spaghetti Carbonara?",
+    "question_type": "guardrail",
+    "difficulty": "medium",
+    "guideline_scope": [],
+    "source_chunk_ids": [],
+    "expected_answer": null,
+    "expected_answer_plain_language": null,
+    "expected_recommendation_metadata": null,
+    "gold_chunk_ids": [],
+    "gold_sections": [],
+    "gold_pages": [],
+    "required_citations": [],
+    "expected_filters": {
+      "guideline_id": null,
+      "recommendation_grade": null,
+      "chunk_type": null
+    },
+    "requires_comparison": false,
+    "needs_pubmed": false,
+    "requires_clarification": false,
+    "missing_clinical_dimensions": [],
+    "clarification_rationale": null,
+    "expected_clarification": null,
+    "claim_verdict": null,
+    "expected_answer_format": "refusal",
+    "expected_answer_sections": [
+      "refusal"
+    ],
+    "retrieval_challenge_types": [],
+    "should_refuse": true,
+    "should_redact_pii": false,
+    "expected_tools": [],
+    "notes": "Smoke-test derivative of guardrail-001-offtopic. Off-topic request that should be refused or redirected safely."
+  }
+]

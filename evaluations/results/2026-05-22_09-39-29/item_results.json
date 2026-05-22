@@ -1,0 +1,200 @@
+[
+  {
+    "item_id": "eval-001-recommendation",
+    "question": "Welche Chemotherapie wird empfohlen?",
+    "question_type": "recommendation",
+    "difficulty": "medium",
+    "dataset_readiness": "ready",
+    "bootstrap_reasons": [],
+    "guideline_scope": [
+      "mamma",
+      "krk",
+      "lunge",
+      "prosta"
+    ],
+    "requires_clarification": true,
+    "expected_behavior": "ask_clarification",
+    "status": "completed",
+    "expected_answer": null,
+    "actual_answer": "Ich brauche vor der Leitlinienrecherche noch eine Präzisierung Ihrer Frage.\n\nDie Anfrage ist in-domain, aber klinisch zu unspezifisch; die Empfehlung hängt von Tumorart und Behandlungssituation ab.\n\nBitte präzisieren Sie, für welche Tumorart und klinische Situation Sie die Chemotherapieempfehlung suchen, zum Beispiel adjuvant, neoadjuvant oder metastasiert.",
+    "actual_answer_plain": "",
+    "response_time_ms": 1853.8,
+    "attempts": 1,
+    "trace_id": "03b9b491fd1b",
+    "token_usage": {
+      "input_tokens": 1827,
+      "output_tokens": 189,
+      "total_tokens": 2016,
+      "cost_usd": 0.001021,
+      "currency": "USD",
+      "calls": [
+        {
+          "step": "rewrite",
+          "model": "google/gemini-2.5-flash",
+          "input_tokens": 1827,
+          "output_tokens": 189,
+          "total_tokens": 2016,
+          "cost_usd": 0.001021,
+          "duration_ms": 1744.89
+        }
+      ]
+    },
+    "metrics": {
+      "behavioral_match": true,
+      "clarification_correct": true,
+      "citation_coverage": 1.0,
+      "tool_usage_match": null,
+      "blocked_correct": null,
+      "answer_presence": true,
+      "citation_presence": null,
+      "plain_language_present": null,
+      "expected_sections_coverage": 1.0,
+      "recommendation_metadata_match": null,
+      "claim_verdict_correct": null,
+      "retrieved_chunk_recall": null,
+      "retrieved_chunk_precision": null,
+      "top_gold_chunk_hit": null,
+      "retrieved_section_recall": null,
+      "retrieved_page_recall": null,
+      "citation_chunk_recall": null,
+      "token_overlap_f1": null,
+      "char_overlap": null
+    },
+    "retrieved_chunks": [],
+    "api_requires_clarification": false,
+    "api_blocked": false,
+    "api_citations_count": 0,
+    "api_tool_calls": [],
+    "safety_warning": null
+  },
+  {
+    "item_id": "eval-007-recommendation",
+    "question": "Welche Therapie wird beim Lungenkarzinom empfohlen?",
+    "question_type": "recommendation",
+    "difficulty": "medium",
+    "dataset_readiness": "ready",
+    "bootstrap_reasons": [],
+    "guideline_scope": [
+      "lunge"
+    ],
+    "requires_clarification": true,
+    "expected_behavior": "ask_clarification",
+    "status": "completed",
+    "expected_answer": null,
+    "actual_answer": "Ich brauche vor der Leitlinienrecherche noch eine Präzisierung Ihrer Frage.\n\nDie Anfrage ist in-domain, aber klinisch zu unspezifisch; die Empfehlung hängt von Histologie, Stadium, Therapie-Einstellung und molekularem Subtyp ab.\n\nBitte präzisieren Sie, um welche Histologie (z.B. kleinzellig, nicht-kleinzellig), welches Stadium und welche Therapie-Einstellung (z.B. kurativ, palliativ, neoadjuvant, adjuvant) es sich handelt, und ob molekulare Subtypen berücksichtigt werden sollen.",
+    "actual_answer_plain": "",
+    "response_time_ms": 1763.7,
+    "attempts": 1,
+    "trace_id": "adab21b160f9",
+    "token_usage": {
+      "input_tokens": 1658,
+      "output_tokens": 240,
+      "total_tokens": 1898,
+      "cost_usd": 0.001097,
+      "currency": "USD",
+      "calls": [
+        {
+          "step": "rewrite",
+          "model": "google/gemini-2.5-flash",
+          "input_tokens": 1658,
+          "output_tokens": 240,
+          "total_tokens": 1898,
+          "cost_usd": 0.001097,
+          "duration_ms": 1741.69
+        }
+      ]
+    },
+    "metrics": {
+      "behavioral_match": true,
+      "clarification_correct": true,
+      "citation_coverage": 1.0,
+      "tool_usage_match": null,
+      "blocked_correct": null,
+      "answer_presence": true,
+      "citation_presence": null,
+      "plain_language_present": null,
+      "expected_sections_coverage": 1.0,
+      "recommendation_metadata_match": null,
+      "claim_verdict_correct": null,
+      "retrieved_chunk_recall": null,
+      "retrieved_chunk_precision": null,
+      "top_gold_chunk_hit": null,
+      "retrieved_section_recall": null,
+      "retrieved_page_recall": null,
+      "citation_chunk_recall": null,
+      "token_overlap_f1": null,
+      "char_overlap": null
+    },
+    "retrieved_chunks": [],
+    "api_requires_clarification": true,
+    "api_blocked": false,
+    "api_citations_count": 0,
+    "api_tool_calls": [],
+    "safety_warning": null
+  },
+  {
+    "item_id": "eval-009-recommendation",
+    "question": "Welche Therapie wird beim Prostatakarzinom empfohlen?",
+    "question_type": "recommendation",
+    "difficulty": "easy",
+    "dataset_readiness": "ready",
+    "bootstrap_reasons": [],
+    "guideline_scope": [
+      "prosta"
+    ],
+    "requires_clarification": true,
+    "expected_behavior": "ask_clarification",
+    "status": "completed",
+    "expected_answer": null,
+    "actual_answer": "Ich brauche vor der Leitlinienrecherche noch eine Präzisierung Ihrer Frage.\n\nDie Tumorart ist bekannt, aber die klinische Situation ist noch zu unspezifisch für eine sichere Leitlinienantwort. Eine Empfehlung hängt stark vom Stadium, der Risikogruppe und dem Behandlungsziel ab.\n\nBitte präzisieren Sie, für welches Stadium, welche Risikogruppe und welches Behandlungsziel (z.B. kurativ, palliativ) Sie die Therapieempfehlung suchen.",
+    "actual_answer_plain": "",
+    "response_time_ms": 1772.0,
+    "attempts": 1,
+    "trace_id": "50780df1f2e2",
+    "token_usage": {
+      "input_tokens": 1658,
+      "output_tokens": 232,
+      "total_tokens": 1890,
+      "cost_usd": 0.001077,
+      "currency": "USD",
+      "calls": [
+        {
+          "step": "rewrite",
+          "model": "google/gemini-2.5-flash",
+          "input_tokens": 1658,
+          "output_tokens": 232,
+          "total_tokens": 1890,
+          "cost_usd": 0.001077,
+          "duration_ms": 1729.14
+        }
+      ]
+    },
+    "metrics": {
+      "behavioral_match": true,
+      "clarification_correct": true,
+      "citation_coverage": 1.0,
+      "tool_usage_match": null,
+      "blocked_correct": null,
+      "answer_presence": true,
+      "citation_presence": null,
+      "plain_language_present": null,
+      "expected_sections_coverage": 1.0,
+      "recommendation_metadata_match": null,
+      "claim_verdict_correct": null,
+      "retrieved_chunk_recall": null,
+      "retrieved_chunk_precision": null,
+      "top_gold_chunk_hit": null,
+      "retrieved_section_recall": null,
+      "retrieved_page_recall": null,
+      "citation_chunk_recall": null,
+      "token_overlap_f1": null,
+      "char_overlap": null
+    },
+    "retrieved_chunks": [],
+    "api_requires_clarification": true,
+    "api_blocked": false,
+    "api_citations_count": 0,
+    "api_tool_calls": [],
+    "safety_warning": null
+  }
+]
