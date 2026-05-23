@@ -1,68 +1,68 @@
-# German Onkologie Assistent
+# German Oncology Assistant
 
-Ein Retrieval-Augmented-Generation-System (RAG) zur Abfrage deutscher S3-Leitlinien in der Onkologie. Klinische Fragen werden auf Deutsch gestellt; das System sucht belegbasierte Antworten aus vier Krebsleitlinien und generiert professionelle sowie laienverständliche Antworten mit vollständigen Quellenangaben.
+A retrieval-augmented generation (RAG) system for querying German S3 oncology clinical guidelines. Clinical questions are asked in German; the system retrieves evidence-based answers from four cancer guidelines and generates professional and plain-language answers with full citations.
 
 ---
 
-## Übersicht
+## Overview
 
-Das System basiert auf einer **LangGraph-Zustandsmaschine** mit 12 Knoten. Jede Anfrage durchläuft Eingabe-Sicherheitsprüfungen, Query-Umformulierung, intelligentes Routing, einen GPT-4o-Tool-Calling-Agenten, Konfidenzprüfung, Antwortgenerierung und Ausgabe-Sicherheitsprüfungen – bevor eine zitierte, belegte Antwort zurückgegeben wird.
+The system is built on a **LangGraph state machine** with 12 nodes. Every user query passes through input safety checks, query rewriting, intelligent routing, a GPT-4o tool-calling agent, confidence evaluation, answer generation, and output safety checks — before returning a cited, grounded response.
 
-**Unterstützte Leitlinien:**
+**Supported guidelines:**
 
-| ID | Leitlinie | Version |
+| ID | Guideline | Version |
 |---|---|---|
-| `mamma` | Mammakarzinom | S3 v4.4 |
-| `krk` | Kolorektales Karzinom | S3 v3.0 |
-| `lunge` | Lungenkarzinom | S3 v4.0 |
-| `prosta` | Prostatakarzinom | S3 v8.0 |
+| `mamma` | Mammakarzinom (Breast Cancer) | S3 v4.4 |
+| `krk` | Kolorektales Karzinom (Colorectal Cancer) | S3 v3.0 |
+| `lunge` | Lungenkarzinom (Lung Cancer) | S3 v4.0 |
+| `prosta` | Prostatakarzinom (Prostate Cancer) | S3 v8.0 |
 
 ---
 
-## Architektur
+## Architecture
 
-### Haupt-Pipeline
+### Main Pipeline
 
 ```
-                              Benutzeranfrage
+                              User Query
                                   │
                                   ▼
                    ┌──────────────────────────────┐
                    │       GUARDRAIL INPUT        │
-                   │  kein LLM · regelbasiert     │
-                   │  ① Prompt-Injection-Erkennung│──── blockiert ──► [BLOCKIERT] ──► ENDE
-                   │  ② Off-Topic-Keyword-Block   │
-                   │  ③ PII-Schwärzung (kein Bl.) │
+                   │  no LLM · rule-based only    │
+                   │  ① prompt injection detect   │──── blocked ──► [BLOCKED] ──► END
+                   │  ② off-topic keyword block   │
+                   │  ③ PII redaction (no block)  │
                    └──────────────┬───────────────┘
-                                  │ weiter
+                                  │ pass
                                   ▼
                    ┌──────────────────────────────┐
                    │            REWRITE           │
-                   │  Gemini 2.5 Flash · 400 Tok  │──── Rückfrage ──► [KLÄRUNG]       ──► ENDE
+                   │  Gemini 2.5 Flash · 400 tok  │──── clarification ──► [CLARIFICATION] ──► END
                    │  → rewritten_query           │
-                   │  → Filter {Leitlinie, Grad}  │──── Duplikat ───► [ANTWORT WDHL.] ──► ENDE
-                   │  → Intent-Klassifikation     │
-                   │  → Query-Dekomposition       │
+                   │  → filters {guideline, grade}│──── duplicate ──────► [REPEAT ANSWER]  ──► END
+                   │  → intent classification     │
+                   │  → query decomposition       │
                    └──────────────┬───────────────┘
                                   │ ok
                                   ▼
                    ┌──────────────────────────────┐
                    │          TURN ROUTER         │
-                   │  ① Heuristik (kein LLM)      │
+                   │  ① heuristic keyword match   │
                    │    vereinfach→simplify        │
-                   │    kürzer→shorten  usw.       │
-                   │  ② Gemini (nur bei Bedarf)   │
+                   │    kürzer→shorten  etc.       │
+                   │  ② Gemini (only if needed)   │
                    │  → followup_routing:         │
                    │    "retrieve" | "memory"     │
                    └──────────────┬───────────────┘
                                   │
                                   ▼
                    ┌──────────────────────────────┐
-                   │             AGENT            │──── memory ──► vorherige Chunks wiederverwenden
-                   │  GPT-4o · max. 2 Iterationen │
-                   │  Iter. 1: ERZWUNGENE Suche   │
-                   │  Iter. 2: auto (beliebig)    │
-                   │  RBAC je Tool-Aufruf geprüft │
+                   │             AGENT            │──── memory ──► reuse prior chunks (no LLM)
+                   │  GPT-4o · max 2 iterations   │
+                   │  iter 1: FORCED search       │
+                   │  iter 2: auto (any or stop)  │
+                   │  RBAC checked per tool call  │
                    └──────────────┬───────────────┘
                                   │
           ┌───────────────────────┼───────────────────────┐
@@ -70,154 +70,279 @@ Das System basiert auf einer **LangGraph-Zustandsmaschine** mit 12 Knoten. Jede 
           ▼                       ▼                       ▼
  ┌─────────────────┐   ┌──────────────────┐   ┌─────────────────────┐
  │search_guidelines│   │lookup_empfehlung │   │ compare_guidelines  │
- │ Hybridsuche     │   │ exakter Filter   │   │ Suche × 4 Leitl.    │
- │ (s. unten)      │   │ recommendation_id│   │ Ergebnisse gruppiert│
+ │  hybrid search  │   │  exact filter    │   │ search × 4 guidel.  │
+ │  (see below)    │   │ recommendation_id│   │ results grouped     │
  └────────┬────────┘   └────────┬─────────┘   └──────────┬──────────┘
           │                     │                         │
           ▼                     ▼                         ▼
  ┌─────────────────┐   ┌──────────────────┐   ┌─────────────────────┐
  │drug_class_lookup│   │  calculate_bmi   │   │   pubmed_search     │
- │ Wirkstoffsuche  │   │ BMI = kg/m²      │   │ esearch → esummary  │
- │ über 4 Leitl.   │   │ + WHO-Kategorie  │   │ 5 strukturierte Erg.│
+ │ drug name search│   │ BMI = kg/m²      │   │ esearch → esummary  │
+ │ across 4 guides │   │ + WHO category   │   │ 5 structured results│
  └────────┬────────┘   └────────┬─────────┘   └──────────┬──────────┘
           └───────────────────────┴───────────────────────┘
                                   │  retrieved_chunks
                                   ▼
                    ┌──────────────────────────────┐
                    │          CONFIDENCE          │
-                   │  Score = Ø(top-3 Reranker)   │──── Score<0,5 ──────────────────────────┐
-                   │  Schwelle: 0,5               │          oder                           │
-                   │  Min. Chunks: 2              │──── Chunks<2  ──────────────────────────┤
+                   │  score = mean(top-3 reranker)│──── score<0.5 ──────────────────────────┐
+                   │  threshold : 0.5             │          or                             │
+                   │  min chunks: 2               │──── chunks<2  ──────────────────────────┤
                    └──────────────┬───────────────┘                                        │
                                   │ ok                                          ┌───────────▼──────────┐
                                   │                                             │        ESCALATE      │
-                                  │                                             │  4 Query-Varianten:  │
+                                  │                                             │  4 query variants:   │
                                   │                                             │  · rewritten_query   │
-                                  │                                             │  · Dekompositions-   │
-                                  │                                             │    teile             │
+                                  │                                             │  · decomposed        │
+                                  │                                             │    items             │
                                   │                                             │  · "Leitlinienempf.."│
-                                  │◄────────────────────────────────────────────  → Top-10 gemergt    │
+                                  │◄────────────────────────────────────────────  → merged top-10     │
                                   ▼                                             └──────────────────────┘
                    ┌──────────────────────────────┐
                    │             ANSWER           │
-                   │  Pfad A — neue Abfrage       │
+                   │  Path A — fresh retrieval    │
                    │  ┌──────────────────────┐   │
-                   │  │ ① Gemini EXTRAKT     │   │
-                   │  │   wörtl. [N]-Tags    │   │
-                   │  │   "NICHTS" → ② überspr│  │
+                   │  │ ① Gemini EXTRACT     │   │
+                   │  │   verbatim [N] tags  │   │
+                   │  │   "NICHTS" → skip ②  │   │
                    │  └──────────┬───────────┘   │
                    │             ▼               │
                    │  ┌──────────────────────┐   │
-                   │  │ ② GPT-4o SYNTHESE    │   │
-                   │  │   {professionell,    │   │
-                   │  │    laienverständl.}  │   │
-                   │  │   + Zitate + HINWEIS │   │
+                   │  │ ② GPT-4o SYNTHESIZE  │   │
+                   │  │   {professional,     │   │
+                   │  │    plain} + citations│   │
+                   │  │   + DISCLAIMER       │   │
                    │  └──────────────────────┘   │
-                   │  Pfad B — Gedächtnis         │
-                   │  Heuristik (kürzen/vereinf.) │
-                   │  oder GPT-4o-Umschreibung    │
+                   │  Path B — memory reuse       │
+                   │  heuristic (shorten/simplify)│
+                   │  or GPT-4o rewrite of prior  │
                    └──────────────┬───────────────┘
                                   │
                                   ▼
                    ┌──────────────────────────────┐
                    │       GUARDRAIL OUTPUT       │
-                   │  kein LLM · regelbasiert     │──── blockiert ──► ENDE  (Sicherheitsfelder gesetzt)
-                   │  ① Patientenspezifisch-Erk.  │
-                   │  ② Dosierungs-Erkennung      │
-                   │  ③ Belegungs-Prüfung         │
-                   │    (hebt Block auf, wenn bel.)│
+                   │  no LLM · rule-based only    │──── blocked ──► END  (safety fields set)
+                   │  ① patient-specific detect   │
+                   │  ② dosage query detect       │
+                   │  ③ grounding verify          │
+                   │    (lifts block if grounded) │
                    └──────────────┬───────────────┘
-                                  │ weiter
+                                  │ pass
                                   ▼
                    ┌──────────────────────────────┐
                    │        EXTERNAL SEARCH       │
                    │  Google CSE → DuckDuckGo     │
-                   │  → [] bei Fehler             │
-                   │  übersprungen wenn: blockiert│
-                   │   / Klärung / kein Web-Perm. │
+                   │  → [] on failure             │
+                   │  skip if: blocked / clarif / │
+                   │   no-web-perm / prior exists │
                    └──────────────┬───────────────┘
                                   │
                                   ▼
-                                 ENDE
-                         SSE → Streamlit-UI
+                                 END
+                         SSE → Streamlit UI
                    data: { answer, citations, tool_calls,
                            rag_trace, token_usage, trace_id }
                    data: [DONE]
 ```
 
-### Hybrid-Suche *(aufgerufen durch `search_guidelines`)*
+### Hybrid Search *(called by `search_guidelines`)*
 
 ```
-          Suchbegriff
+          query string
                │
                ▼
    ┌───────────────────────┐
-   │  text-embedding-3-    │   3072 Dim. · Batch 64
+   │  text-embedding-3-    │   3072 dim · batch 64
    │  large  (OpenAI)      │
    └─────────┬─────────────┘
-             │  Query-Vektor
+             │  query vector
      ┌───────┴────────┐
      │                │
      ▼                ▼
 ┌──────────┐   ┌──────────────┐   ┌──────────────────────┐
-│ Milvus   │   │   Milvus     │   │   BM25 Sparse        │
+│ Milvus   │   │   Milvus     │   │   BM25 sparse        │
 │ ANN #1   │   │   ANN #2     │   │   rank_bm25.         │
-│ alle Typen│  │ nur Empf.    │   │   OkapiBM25          │
+│ all types│   │ recomm. only │   │   OkapiBM25          │
 │ top-20   │   │ top-10       │   │   bm25_index.pkl     │
-│ COSINE   │   │ COSINE/HNSW  │   │   top-20 Treffer     │
+│ COSINE   │   │ COSINE/HNSW  │   │   top-20 matches     │
 │ HNSW     │   │              │   │                      │
 └────┬─────┘   └──────┬───────┘   └──────────┬───────────┘
      │                │                       │
      └────────┬───────┘                       │
               ▼                               │
    ┌─────────────────────┐                    │
-   │   RRF  Runde 1      │                    │
+   │   RRF  round 1      │                    │
    │  fuse(ANN#1, ANN#2) │                    │
    │  k = 60             │                    │
    └──────────┬──────────┘                    │
               └──────────────┬────────────────┘
                              ▼
                   ┌─────────────────────┐
-                  │   RRF  Runde 2      │
-                  │ fuse(Runde1, BM25)  │
+                  │   RRF  round 2      │
+                  │ fuse(round1, BM25)  │
                   │ k = 60              │
                   └──────────┬──────────┘
                              ▼
                   ┌─────────────────────┐
                   │   CrossEncoder      │
                   │ BAAI/bge-reranker   │
-                  │ -v2-m3 (lokal)      │
-                  │ bis 30 Kandidaten   │
-                  │ Fallback: RRF-Rang  │
+                  │ -v2-m3 (local)      │
+                  │ up to 30 candidates │
+                  │ fallback: RRF order │
                   └──────────┬──────────┘
                              ▼
                   ┌─────────────────────┐
                   │  Parent Expansion   │
-                  │ Parent-Text voranst.│
-                  │ Seitenb. zusammenf. │
-                  │ lautlos bei Fehler  │
+                  │ fetch parent chunk  │
+                  │ prepend to leaf text│
+                  │ merge page ranges   │
+                  │ silent on failure   │
                   └──────────┬──────────┘
                              ▼
-                      top-5 Chunks
+                      top-5 chunks
                    (RetrievedChunk[])
 ```
 
-### LLM-Aufrufe pro Anfrage *(Normalpfad)*
+### LLM Calls per Request *(happy path)*
 
 ```
-  Knoten          Modell                 Zweck                    Token
+  Node            Model                  Purpose                  Tokens
   ──────────────────────────────────────────────────────────────────────
-  rewrite         Gemini 2.5 Flash       Query erweitern/klassif.   400
-  turn_router     Gemini 2.5 Flash       Intent-Klassifikation      200  ← nur bei Heuristik-Fehler
-  agent Iter. 1   GPT-4o                 Erzwungener Suchaufruf      —
-  agent Iter. 2   GPT-4o                 Optionale weitere Tools     —
-  answer extract  Gemini 2.5 Flash       Wörtliche Extraktion      1500
-  answer synth    GPT-4o                 Professionell + Laien-JSON 1200
+  rewrite         Gemini 2.5 Flash       expand + classify query    400
+  turn_router     Gemini 2.5 Flash       intent classification      200  ← only if heuristic fails
+  agent iter 1    GPT-4o                 forced search call          —
+  agent iter 2    GPT-4o                 optional extra tools        —
+  answer extract  Gemini 2.5 Flash       verbatim extraction       1500
+  answer synth    GPT-4o                 professional + plain JSON  1200
   ──────────────────────────────────────────────────────────────────────
-  Alle über OpenRouter  (ein API-Schlüssel · eine Basis-URL)
+  All via OpenRouter  (one API key · one base URL)
 ```
 
-## Indexing Pipeline  *(offline · `python scripts/run_indexer.py`)*
+---
+
+## Features
+
+### Core
+- **Hybrid RAG search:** dense vector (Milvus HNSW) + BM25 sparse, fused via Reciprocal Rank Fusion
+- **CrossEncoder reranking:** `BAAI/bge-reranker-v2-m3` re-scores top-12 candidates
+- **6 domain tools:** guideline search, recommendation lookup, guideline comparison, drug cross-search, BMI calculation, PubMed search
+- **Dual-stage answer generation:** Gemini 2.5 Flash extracts verbatim sentences → GPT-4o synthesizes into professional + plain-language answer
+- **Full citation chain:** `[1]`, `[2]` inline references linked to source cards with page, section, and grade
+- **Conversation memory:** repeated or follow-up queries reuse prior answers without re-querying the database
+
+### Safety
+- **Input guardrail:** blocks prompt injections and off-topic queries; redacts PII (dates, names, phone numbers, postal codes) before any LLM sees the query
+- **Output guardrail:** blocks answers without retrieved evidence; restricts dosing details unless directly grounded in retrieved chunks; adds patient-specific disclaimers
+- **Confidence escalation:** low reranker confidence triggers 4-query multi-strategy fallback retrieval
+
+### Infrastructure
+- **Rate limiting:** sliding window, per-user per-route (20 req/60s for chat)
+- **API key management:** multi-key support via environment variable
+- **Structured logging:** JSON-structured logs with trace IDs and request durations
+- **Token tracking:** per-call usage and cost (USD) aggregated across the pipeline
+- **Conversation persistence:** SQLite-backed conversation history with session isolation
+
+### UI
+- **Streamlit chat interface** with real-time SSE streaming
+- **Source cards:** retrieved chunks with guideline, section, page range, grade, evidence level
+- **RAG process visualisation:** step-by-step trace with status and duration for each pipeline node
+- **Analytics dashboard:** token usage, cost, tool frequency, guideline distribution, time-series
+- **Export:** download conversations as JSON, CSV, or PDF
+
+---
+
+## Prerequisites
+
+- Python 3.12+
+- An [OpenRouter](https://openrouter.ai) API key (routes to GPT-4o and Gemini 2.5 Flash)
+- PDF files of the S3 guidelines (not included in the repository)
+
+---
+
+## Installation
+
+```bash
+git clone https://github.com/Ferid1088/german-oncology-assistant.git
+cd german-oncology-assistant
+
+python -m venv .venv
+source .venv/bin/activate       # Windows: .venv\Scripts\activate
+
+pip install -e .
+pip install -e ".[dev]"         # dev dependencies (tests)
+```
+
+---
+
+## Configuration
+
+```bash
+cp .env.example .env
+```
+
+`.env` reference:
+
+```env
+# Required — get a key at https://openrouter.ai
+OPENROUTER_API_KEY=your_key_here
+
+# LLM models
+GENERATION_MODEL=openai/gpt-4o
+CHEAP_MODEL=google/gemini-2.5-flash
+EMBEDDING_MODEL=openai/text-embedding-3-large
+
+# Milvus — leave empty to use Milvus Lite (./milvus.db, no server required)
+MILVUS_URI=
+MILVUS_COLLECTION=oncology_guidelines
+
+# API authentication — change in production
+API_KEY=dev-secret-key
+# Multiple comma-separated keys:
+# API_KEYS=key1,key2,key3
+
+# Conversation database (SQLite)
+CONVERSATION_DB_PATH=data/app_state.db
+
+# Optional: Google Custom Search for external web results
+# GOOGLE_SEARCH_API_KEY=
+# GOOGLE_SEARCH_ENGINE_ID=
+
+# Logging level: DEBUG | INFO | WARNING | ERROR
+LOG_LEVEL=INFO
+
+# Optional: PostgreSQL for LangGraph checkpointing
+# DATABASE_URL=postgresql://postgres:postgres@localhost:5432/oncology_rag
+```
+
+---
+
+## Indexing the Guidelines
+
+Place PDF files in the `data/` directory and run:
+
+```bash
+python scripts/run_indexer.py                        # All 4 guidelines
+python scripts/run_indexer.py --pdf mammakarzinom_v4.4.pdf  # Single guideline
+python scripts/run_indexer.py --dry-run              # Parse only, no database writes
+python scripts/run_indexer.py --no-enrich            # Faster, without LLM enrichment
+```
+
+With enrichment enabled (default), Gemini 2.5 Flash generates per chunk:
+- A contextual header (clinical context and content)
+- 2–3 hypothetical questions a clinician might ask about this chunk
+- Semantic metadata (diseases, drugs, procedures, patient subgroups)
+
+**Expected file names** (configured in `src/indexer/pipeline.py`):
+
+| File | Guideline ID |
+|---|---|
+| `mammakarzinom_v4.4.pdf` | `mamma` |
+| `kolorektales_v3.0.pdf` | `krk` |
+| `lungenkarzinom_v4.0.pdf` | `lunge` |
+| `prostatakarzinom_v8.0.pdf` | `prosta` |
+
+---
+## Indexing Pipeline  *(`python scripts/run_indexer.py`)*
 
 ```
    PDF  (docs/knowledge_base/)
@@ -265,144 +390,20 @@ Das System basiert auf einer **LangGraph-Zustandsmaschine** mit 12 Knoten. Jede 
 ```
 
 ---
-
-## Funktionen
-
-### Kernfunktionen
-- **Hybrid-RAG-Suche:** Dichte Vektoren (Milvus HNSW) + BM25 Sparse, fusioniert per Reciprocal Rank Fusion
-- **CrossEncoder-Reranking:** `BAAI/bge-reranker-v2-m3` bewertet die Top-12 Kandidaten neu
-- **6 Domänen-Tools:** Leitliniensuche, Empfehlungsabruf, Leitlinienvergleich, Wirkstoffsuche, BMI-Berechnung, PubMed-Suche
-- **Zweistufige Antwortgenerierung:** Gemini 2.5 Flash extrahiert wörtliche Sätze → GPT-4o synthetisiert professionelle + laienverständliche Antwort
-- **Vollständige Zitatkette:** `[1]`, `[2]` als Inline-Referenzen mit Seite, Abschnitt und Empfehlungsgrad
-- **Gesprächsgedächtnis:** Wiederholte oder Folge-Anfragen verwenden frühere Antworten ohne erneuten Datenbankzugriff
-
-### Sicherheit
-- **Eingabe-Guardrail:** Blockiert Prompt-Injections und Off-Topic-Anfragen; schwärzt PII (Daten, Namen, Telefonnummern, Postleitzahlen) vor jedem LLM-Zugriff
-- **Ausgabe-Guardrail:** Blockiert Antworten ohne Belege; schränkt Dosierungsangaben ein, wenn nicht direkt durch abgerufene Chunks belegt; fügt patientenspezifische Hinweise hinzu
-- **Konfidenz-Eskalation:** Niedriger Reranker-Score löst eine 4-fache Multi-Strategie-Fallback-Suche aus
-
-### Infrastruktur
-- **Rate-Limiting:** Gleitendes Fenster, pro Benutzer und Route (20 Anf./60s für Chat)
-- **API-Schlüsselverwaltung:** Unterstützung mehrerer Schlüssel über Umgebungsvariablen
-- **Strukturiertes Logging:** JSON-Logs mit Trace-IDs und Anfragedauer
-- **Token-Tracking:** Verbrauch und Kosten (USD) je Aufruf, aggregiert über die gesamte Pipeline
-- **Gesprächspersistenz:** SQLite-basierter Gesprächsverlauf mit Session-Isolierung
-
-### Benutzeroberfläche
-- **Streamlit-Chat-Oberfläche** mit Echtzeit-SSE-Streaming
-- **Quellenkarten:** Abgerufene Chunks mit Leitlinie, Abschnitt, Seitenbereich, Grad und Evidenzlevel
-- **RAG-Prozessvisualisierung:** Schritt-für-Schritt-Trace mit Status und Dauer je Pipeline-Knoten
-- **Analytics-Dashboard:** Token-Verbrauch, Kosten, Tool-Häufigkeit, Leitlinienverteilung, Zeitreihen
-- **Export:** Gespräche als JSON, CSV oder PDF herunterladen
-
----
-
-## Voraussetzungen
-
-- Python 3.12+
-- Ein [OpenRouter](https://openrouter.ai)-API-Schlüssel (routet zu GPT-4o und Gemini 2.5 Flash)
-- PDF-Dateien der S3-Leitlinien (nicht im Repository enthalten)
-
----
-
-## Installation
-
-```bash
-git clone https://github.com/Ferid1088/german-oncology-assistant.git
-cd german-oncology-assistant
-
-python -m venv .venv
-source .venv/bin/activate       # Windows: .venv\Scripts\activate
-
-pip install -e .
-pip install -e ".[dev]"         # Entwicklungsabhängigkeiten (Tests)
-```
-
----
-
-## Konfiguration
-
-```bash
-cp .env.example .env
-```
-
-`.env`-Referenz:
-
-```env
-# Erforderlich — Schlüssel unter https://openrouter.ai
-OPENROUTER_API_KEY=your_key_here
-
-# LLM-Modelle
-GENERATION_MODEL=openai/gpt-4o
-CHEAP_MODEL=google/gemini-2.5-flash
-EMBEDDING_MODEL=openai/text-embedding-3-large
-
-# Milvus — leer lassen für Milvus Lite (./milvus.db, kein Server erforderlich)
-MILVUS_URI=
-MILVUS_COLLECTION=oncology_guidelines
-
-# API-Authentifizierung — in Produktion ändern
-API_KEY=dev-secret-key
-# Mehrere Schlüssel kommagetrennt:
-# API_KEYS=key1,key2,key3
-
-# Gesprächsdatenbank (SQLite)
-CONVERSATION_DB_PATH=data/app_state.db
-
-# Optional: Google Custom Search für externe Webergebnisse
-# GOOGLE_SEARCH_API_KEY=
-# GOOGLE_SEARCH_ENGINE_ID=
-
-# Protokollierungsstufe: DEBUG | INFO | WARNING | ERROR
-LOG_LEVEL=INFO
-
-# Optional: PostgreSQL für LangGraph-Checkpointing
-# DATABASE_URL=postgresql://postgres:postgres@localhost:5432/oncology_rag
-```
-
----
-
-## Leitlinien indizieren
-
-Vor dem Start müssen die PDF-Leitlinien in die Milvus-Vektordatenbank indiziert werden. PDFs im Verzeichnis `data/` ablegen und ausführen:
-
-```bash
-python scripts/run_indexer.py                        # Alle 4 Leitlinien
-python scripts/run_indexer.py --pdf mammakarzinom_v4.4.pdf  # Einzelne Leitlinie
-python scripts/run_indexer.py --dry-run              # Nur parsen, kein Datenbankschreiben
-python scripts/run_indexer.py --no-enrich            # Schneller, ohne LLM-Anreicherung
-```
-
-Mit aktivierter Anreicherung (Standard) ruft Gemini 2.5 Flash je Chunk folgendes auf:
-- Kontextuellen Header (klinischer Kontext und Inhalt)
-- 2–3 hypothetische Fragen, die ein Kliniker zu diesem Chunk stellen könnte
-- Semantische Metadaten (Erkrankungen, Medikamente, Verfahren, Patientengruppen)
-
-**Erwartete Dateinamen** (konfiguriert in `src/indexer/pipeline.py`):
-
-| Datei | Leitlinien-ID |
-|---|---|
-| `mammakarzinom_v4.4.pdf` | `mamma` |
-| `kolorektales_v3.0.pdf` | `krk` |
-| `lungenkarzinom_v4.0.pdf` | `lunge` |
-| `prostatakarzinom_v8.0.pdf` | `prosta` |
-
----
-
-## Anwendung starten
+## Running the App
 
 ```bash
 python scripts/run_app.py
 ```
 
-| Dienst | URL |
+| Service | URL |
 |---|---|
-| Streamlit-UI | http://localhost:8501 |
-| FastAPI-Backend | http://localhost:8000 |
-| API-Dokumentation (Swagger) | http://localhost:8000/docs |
-| Health-Check | http://localhost:8000/health |
+| Streamlit UI | http://localhost:8501 |
+| FastAPI backend | http://localhost:8000 |
+| API docs (Swagger) | http://localhost:8000/docs |
+| Health check | http://localhost:8000/health |
 
-Dienste einzeln starten:
+Start services individually:
 
 ```bash
 uvicorn src.api.main:app --host 0.0.0.0 --port 8000
@@ -411,9 +412,9 @@ streamlit run src/ui/app.py --server.port 8501
 
 ---
 
-## API-Referenz
+## API Reference
 
-Alle Endpunkte erfordern den Header `X-API-Key` (Wert aus der Umgebungsvariable `API_KEY`).
+All endpoints require the `X-API-Key` header (value from `API_KEY` env var).
 
 ### Chat
 
@@ -430,99 +431,99 @@ X-API-Key: dev-secret-key
 }
 ```
 
-Antwort wird als Server-Sent Events (SSE) gestreamt. Das finale Event enthält `answer_professional`, `answer_plain`, `citations`, `rag_trace` und `token_usage`.
+Response is streamed as Server-Sent Events (SSE). The final event contains `answer_professional`, `answer_plain`, `citations`, `rag_trace` and `token_usage`.
 
-### Gespräche
+### Conversations
 
 ```http
-GET    /conversations                             # Alle Sessions auflisten
-GET    /conversations/{session_id}                # Session laden
-DELETE /conversations/{session_id}                # Session löschen
-POST   /conversations/{session_id}/export?format=json   # Export (json | csv | pdf)
+GET    /conversations                             # list all sessions
+GET    /conversations/{session_id}                # load a session
+DELETE /conversations/{session_id}                # delete a session
+POST   /conversations/{session_id}/export?format=json   # export (json | csv | pdf)
 ```
 
 ### Analytics
 
 ```http
-GET /analytics/overview    # Token-Verbrauch, Kosten, Tool-Häufigkeit, Leitlinienverteilung
+GET /analytics/overview    # token usage, cost, tool frequency, guideline distribution
 ```
 
 ---
 
-## Knotenübersicht (12 Knoten)
+## Node Overview (12 nodes)
 
-**Gruppe 1 — 8 Knoten mit eigenen Dateien in `src/graph/nodes/`:**
+**Group 1 — 8 nodes with dedicated files in `src/graph/nodes/`:**
 
-| Knoten | Datei | Modell | Funktion |
+| Node | File | Model | What it does |
 |---|---|---|---|
-| `guardrail_input` | `guardrail_input.py` | — | Regex: blockiert Injections, Off-Topic; schwärzt PII |
-| `rewrite` | `rewriter.py` | Gemini 2.5 Flash | Normalisiert Query, extrahiert Filter, erkennt Mehrdeutigkeit |
-| `turn_router` | `turn_router.py` | Gemini 2.5 Flash | Klassifiziert Turn-Intent; routet zu Gedächtnis oder Abruf |
-| `agent` | `agent.py` | GPT-4o | 2-Iterations-Tool-Calling-Loop; Iter. 1 ruft immer `search_guidelines` auf |
-| `confidence` | `confidence.py` | — | Ø Reranker-Score Top-3; eskaliert bei Score < 0,5 |
-| `answer` | `answer.py` | Gemini + GPT-4o | Stufe 1: wörtliche Extraktion (Gemini). Stufe 2: Synthese (GPT-4o) |
-| `guardrail_output` | `guardrail_output.py` | — | Blockiert unbelegte Antworten; schränkt Dosierung ein |
-| `external_search` | `external_search.py` | — | Google/DuckDuckGo ergänzende Snippets |
+| `guardrail_input` | `guardrail_input.py` | — | Regex: blocks injections, off-topic; redacts PII |
+| `rewrite` | `rewriter.py` | Gemini 2.5 Flash | Normalises query, extracts filters, detects ambiguity |
+| `turn_router` | `turn_router.py` | Gemini 2.5 Flash | Classifies turn intent; routes to memory or retrieval |
+| `agent` | `agent.py` | GPT-4o | 2-iteration tool-calling loop; iter 1 always calls `search_guidelines` |
+| `confidence` | `confidence.py` | — | Mean reranker score top-3; escalates if score < 0.5 |
+| `answer` | `answer.py` | Gemini + GPT-4o | Stage 1: verbatim extraction (Gemini). Stage 2: synthesis (GPT-4o) |
+| `guardrail_output` | `guardrail_output.py` | — | Blocks ungrounded answers; restricts dosing |
+| `external_search` | `external_search.py` | — | Google/DuckDuckGo supplemental snippets |
 
-**Gruppe 2 — 4 Knoten als private Funktionen in `src/graph/graph.py`:**
+**Group 2 — 4 nodes as private functions in `src/graph/graph.py`:**
 
-| Knoten | Funktion | Funktion |
+| Node | Function | What it does |
 |---|---|---|
-| `blocked` | `_blocked_response()` | Gibt `input_block_reason` als finale Antwort zurück |
-| `clarification` | `_clarification_response()` | Gibt eine deutsche Rückfrage zurück |
-| `repeat_answer` | `_repeat_previous_answer_response()` | Gibt vorherige Antwort unverändert zurück |
-| `escalate` | `_multi_query_escalation()` | Generiert 4 Query-Varianten und führt Fallback-Suche durch |
+| `blocked` | `_blocked_response()` | Returns `input_block_reason` as the final answer |
+| `clarification` | `_clarification_response()` | Returns a German clarification request |
+| `repeat_answer` | `_repeat_previous_answer_response()` | Returns the previous answer unchanged |
+| `escalate` | `_multi_query_escalation()` | Generates 4 query variants and runs fallback retrieval |
 
 ---
 
-## Wichtige Designentscheidungen
+## Key Design Decisions
 
-**Warum LangGraph?**
-Jeder Pipeline-Schritt ist unabhängig testbar, nachverfolgbar und austauschbar. Jeder Knoten liest aus und schreibt in ein einzelnes `RAGState`-TypedDict.
+**Why LangGraph?**
+Every pipeline step is independently testable, traceable, and replaceable. Each node reads from and writes to a single `RAGState` TypedDict.
 
-**Warum Hybrid-Suche?**
-Dichte Vektoren erfassen semantische Ähnlichkeit; BM25 trifft exakte Keyword-Treffer (Wirkstoffnamen, Empfehlungs-IDs, Abschnittsnummern). RRF-Fusion kombiniert beides ohne kalibrierte Scores.
+**Why hybrid search?**
+Dense vectors capture semantic similarity; BM25 catches exact keyword matches (drug names, recommendation IDs, section numbers). RRF fusion combines both without needing calibrated scores.
 
-**Warum zweifache Dense-Suche?**
-Eine einzelne Suche über alle Chunk-Typen lässt lange Prosa-Abschnitte kurze Empfehlungs-Chunks verdrängen. Die zweite Suche nur auf `chunk_type=recommendation` stellt sicher, dass klinische Empfehlungen immer im Kandidatenpool erscheinen.
+**Why dual dense search?**
+A single dense search over all chunk types allows long prose sections to outrank short recommendation chunks. A second search restricted to `chunk_type=recommendation` ensures clinical recommendations always appear in the candidate pool.
 
-**Warum zweistufige Antwortgenerierung?**
-Stufe 1 (Gemini-Extraktion) zwingt das Modell, Sätze wörtlich aus dem abgerufenen Text zu kopieren – kein Paraphrasieren, kein Trainingswissen. Stufe 2 (GPT-4o-Synthese) formuliert nur um, was bereits extrahiert wurde. Halluzinationen werden strukturell erschwert.
+**Why two-stage answer generation?**
+Stage 1 (Gemini extraction) forces the model to copy sentences verbatim from retrieved text — no paraphrasing, no training data knowledge. Stage 2 (GPT-4o synthesis) only rephrases what was already extracted. This makes hallucination structurally hard.
 
-**Warum kein LLM im Eingabe-Guardrail?**
-Ein LLM zur Erkennung von Prompt-Injections schafft eine zirkuläre Angreifbarkeit. Regex und Keyword-Matching sind deterministisch und können nicht durch Jailbreaks umgangen werden.
+**Why no LLM in the input guardrail?**
+Using an LLM to detect prompt injections creates a circular vulnerability. Regex and keyword matching are deterministic and cannot be jailbroken.
 
 ---
 
-## Projektstruktur
+## Project Structure
 
 ```
 .
 ├── src/
-│   ├── api/                    FastAPI-Backend
-│   │   ├── main.py             Einstiegspunkt, Middleware
+│   ├── api/                    FastAPI backend
+│   │   ├── main.py             App entry point, middleware
 │   │   ├── routes/             chat.py, conversations.py, analytics.py
-│   │   ├── auth.py             API-Schlüssel-Verifizierung
-│   │   ├── rate_limit.py       Gleitendes-Fenster-Rate-Limiter
-│   │   ├── observability.py    JSON-Logging, Trace-IDs
-│   │   ├── conversation_store.py  SQLite-Persistenz
-│   │   ├── export_utils.py     JSON / CSV / PDF Export
+│   │   ├── auth.py             API key verification
+│   │   ├── rate_limit.py       Sliding window rate limiter
+│   │   ├── observability.py    JSON logging, trace IDs
+│   │   ├── conversation_store.py  SQLite persistence
+│   │   ├── export_utils.py     JSON / CSV / PDF export
 │   │   └── analytics_service.py
 │   │
-│   ├── graph/                  LangGraph-Zustandsmaschine
-│   │   ├── graph.py            build_graph() — 12-Knoten-StateGraph
-│   │   ├── state.py            RAGState TypedDict (~35 Felder)
+│   ├── graph/                  LangGraph state machine
+│   │   ├── graph.py            build_graph() — 12-node StateGraph
+│   │   ├── state.py            RAGState TypedDict (~35 fields)
 │   │   ├── permissions.py      RBAC: is_tool_allowed(), is_source_allowed()
-│   │   └── nodes/              8 Knoten-Module (s. oben)
+│   │   └── nodes/              8 node modules (see above)
 │   │
-│   ├── retrieval/              Suche und Ranking
-│   │   ├── search.py           hybrid_search() — Dense + BM25 + RRF
-│   │   ├── bm25.py             BM25-Index Aufbau und Laden
-│   │   ├── reranker.py         CrossEncoder-Reranking
-│   │   ├── expander.py         Parent-Chunk-Erweiterung
-│   │   └── postprocess.py      Deduplizierung
+│   ├── retrieval/              Search and ranking
+│   │   ├── search.py           hybrid_search() — dense + BM25 + RRF
+│   │   ├── bm25.py             BM25 index build and load
+│   │   ├── reranker.py         CrossEncoder reranking
+│   │   ├── expander.py         Parent chunk expansion
+│   │   └── postprocess.py      Deduplication
 │   │
-│   ├── tools/                  Agent-Tools (6 + Web)
+│   ├── tools/                  Agent tools (6 + web)
 │   │   ├── search_guidelines.py
 │   │   ├── lookup_empfehlung.py
 │   │   ├── compare_guidelines.py
@@ -531,17 +532,17 @@ Ein LLM zur Erkennung von Prompt-Injections schafft eine zirkuläre Angreifbarke
 │   │   ├── pubmed_search.py
 │   │   └── web_search.py
 │   │
-│   ├── indexer/                PDF-Ingestion-Pipeline
-│   │   ├── pipeline.py         index_pdf() — Haupt-Orchestrierung
-│   │   ├── chunker.py          Hierarchisches Chunking (550 Tok, 70 Überlappung)
-│   │   ├── embedder.py         embed_texts() — Batch 64
-│   │   ├── store.py            MilvusStore — HNSW-Collection-Management
-│   │   ├── enricher.py         LLM-Anreicherung (Header, HyDE-Fragen, Metadaten)
-│   │   ├── metadata.py         Grad/Evidenz/Abschnitt-Extraktion
-│   │   └── reference.py        Bibliografie-Parsing
+│   ├── indexer/                PDF ingestion pipeline
+│   │   ├── pipeline.py         index_pdf() — main orchestration
+│   │   ├── chunker.py          Hierarchical chunking (550 tok, 70 overlap)
+│   │   ├── embedder.py         embed_texts() — batch 64
+│   │   ├── store.py            MilvusStore — HNSW collection management
+│   │   ├── enricher.py         LLM enrichment (headers, HyDE questions, metadata)
+│   │   ├── metadata.py         Grade/evidence/section extraction
+│   │   └── reference.py        Bibliography parsing
 │   │
-│   ├── ui/                     Streamlit-Frontend
-│   │   ├── app.py              Einstiegspunkt
+│   ├── ui/                     Streamlit frontend
+│   │   ├── app.py              Entry point
 │   │   └── components/
 │   │       ├── chat_page.py
 │   │       ├── source_cards.py
@@ -550,91 +551,91 @@ Ein LLM zur Erkennung von Prompt-Injections schafft eine zirkuläre Angreifbarke
 │   │       ├── analytics_dashboard.py
 │   │       └── filters.py
 │   │
-│   ├── telemetry.py            Token-Tracking, Kosten, Tool-Zusammenfassung
-│   └── citations.py            Zitatformatierung
+│   ├── telemetry.py            Token tracking, cost, tool summarisation
+│   └── citations.py            Citation string formatting
 │
-├── evaluations/                Evaluierungsframework
+├── evaluations/                Evaluation framework
 │   ├── scripts/
-│   │   ├── run_eval.py         Testdatensatz gegen Live-API ausführen
-│   │   └── run_ab_eval.py      A/B-Vergleich zweier Konfigurationen
+│   │   ├── run_eval.py         Runs test dataset against live API
+│   │   └── run_ab_eval.py      A/B comparison between two configs
 │   ├── metrics/
-│   │   ├── ragas_metrics.py    RAGAs-Integration
+│   │   ├── ragas_metrics.py    RAGAs integration
 │   │   ├── retrieval.py        chunk_recall, chunk_precision
 │   │   ├── behavioral.py       tool_call_count, external_search_used
 │   │   └── similarity.py       answer_similarity, coverage
 │   └── ui/
-│       └── app.py              Evaluierungsergebnis-Dashboard
+│       └── app.py              Evaluation results dashboard
 │
 ├── scripts/
-│   ├── run_app.py              API + UI gemeinsam starten
-│   ├── run_indexer.py          PDFs in Milvus indizieren
+│   ├── run_app.py              Start API + UI together
+│   ├── run_indexer.py          Index PDFs into Milvus
 │   └── generate_eval_dataset.py
 │
-├── tests/                      Pytest-Testsuite
+├── tests/                      Pytest test suite
 │   ├── api/
 │   ├── graph/
 │   ├── indexer/
 │   ├── retrieval/
 │   └── tools/
 │
-├── data/                       Laufzeitdaten (nicht versioniert)
-│   └── app_state.db            SQLite-Gesprächsdatenbank
+├── data/                       Runtime data (not committed)
+│   └── app_state.db            SQLite conversation database
 │
-├── milvus.db/                  Milvus Lite lokal (nicht versioniert)
-├── bm25_index.pkl              BM25 Sparse Index (nicht versioniert)
+├── milvus.db/                  Milvus Lite local database (not committed)
+├── bm25_index.pkl              BM25 sparse index (not committed)
 ├── pyproject.toml
 └── .env.example
 ```
 
 ---
 
-## Tests ausführen
+## Running Tests
 
 ```bash
-pytest                    # Alle Tests
-pytest tests/retrieval/   # Einzelnes Modul
-pytest -v                 # Mit ausführlicher Ausgabe
+pytest                    # All tests
+pytest tests/retrieval/   # Single module
+pytest -v                 # Verbose output
 ```
 
 ---
 
-## Evaluierung
+## Evaluation
 
-Evaluierungssuite gegen die laufende API ausführen:
+Run the evaluation suite against the live API:
 
 ```bash
-python evaluations/scripts/run_eval.py        # Vollständige Evaluierung mit RAGAs-Metriken
-python evaluations/scripts/run_ab_eval.py     # A/B-Vergleich zweier Modellkonfigurationen
-streamlit run evaluations/ui/app.py           # Ergebnisse im Dashboard ansehen
+python evaluations/scripts/run_eval.py        # Full evaluation with RAGAs metrics
+python evaluations/scripts/run_ab_eval.py     # A/B comparison between two model configs
+streamlit run evaluations/ui/app.py           # View results in the dashboard
 ```
 
-Berechnete Metriken:
+Metrics computed:
 - **Retrieval:** `chunk_recall`, `chunk_precision`, `top_gold_chunk_hit`
 - **RAGAs:** `context_precision`, `context_recall`, `faithfulness`, `answer_relevancy`, `answer_correctness`
 - **Behavioral:** `answer_length`, `tool_call_count`, `external_search_used`
-- **Ähnlichkeit:** `answer_similarity`, `coverage`
+- **Similarity:** `answer_similarity`, `coverage`
 
-Ergebnisse werden als `summary.json`, `item_results.json`, `ragas_records.json` und `metadata.json` gespeichert.
+Results are saved as `summary.json`, `item_results.json`, `ragas_records.json` and `metadata.json`.
 
 ---
 
-## Tech-Stack
+## Tech Stack
 
-| Komponente | Technologie |
+| Component | Technology |
 |---|---|
-| Graph-Orchestrierung | LangGraph |
-| LLM — Generierung | GPT-4o via OpenRouter |
-| LLM — günstige Aufgaben | Gemini 2.5 Flash via OpenRouter |
-| Embeddings | OpenAI `text-embedding-3-large` (3072 Dim.) |
-| Vektordatenbank | Milvus Lite (in-process, `./milvus.db`) |
-| Sparse-Index | BM25 (`rank-bm25`) |
+| Graph orchestration | LangGraph |
+| LLM — generation | GPT-4o via OpenRouter |
+| LLM — cheap tasks | Gemini 2.5 Flash via OpenRouter |
+| Embeddings | OpenAI `text-embedding-3-large` (3072 dim) |
+| Vector database | Milvus Lite (in-process, `./milvus.db`) |
+| Sparse index | BM25 (`rank-bm25`) |
 | Reranker | `BAAI/bge-reranker-v2-m3` (sentence-transformers) |
-| PDF-Parsing | PyMuPDF |
-| Backend-API | FastAPI + Uvicorn |
+| PDF parsing | PyMuPDF |
+| Backend API | FastAPI + Uvicorn |
 | Streaming | Server-Sent Events (sse-starlette) |
 | Frontend | Streamlit |
-| Persistenz | SQLite (Gespräche) |
-| Evaluierung | RAGAs |
+| Persistence | SQLite (conversations) |
+| Evaluation | RAGAs |
 
 ---
 
@@ -652,12 +653,12 @@ Ergebnisse werden als `summary.json`, `item_results.json`, `ragas_records.json` 
 ```
 
 ---
-## Umgebungshinweise
+## Environment Notes
 
-- **Milvus Lite** läuft in-process — kein Docker oder externer Milvus-Server für lokale Entwicklung erforderlich. Die Datenbank liegt in `./milvus.db/`.
-- **OpenRouter** stellt einen einheitlichen API-Endpunkt für GPT-4o und Gemini bereit. Nur ein API-Schlüssel wird benötigt.
-- `MILVUS_URI` leer lassen (oder nicht setzen) für Milvus Lite. Eine HTTP-Adresse aktiviert einen vollständigen Milvus-Server.
-- Für Produktion `DATABASE_URL` auf eine PostgreSQL-Verbindungszeichenkette setzen, um LangGraph-Graph-Checkpointing über Server-Neustarts hinweg zu aktivieren.
+- **Milvus Lite** runs in-process — no Docker or external Milvus server required for local development. The database lives in `./milvus.db/`.
+- **OpenRouter** provides a single API-compatible endpoint for both GPT-4o and Gemini. Only one API key is needed.
+- Leave `MILVUS_URI` empty (or unset) for Milvus Lite. Setting it to an HTTP address enables a full Milvus server.
+- For production, set `DATABASE_URL` to a PostgreSQL connection string to enable LangGraph graph checkpointing across server restarts.
 
 
 ---
@@ -690,4 +691,3 @@ Ergebnisse werden als `summary.json`, `item_results.json`, `ragas_records.json` 
 | **SSE (Server-Sent Events)** | HTTP protocol for server-to-client streaming. Used by the FastAPI backend to stream partial answers to the Streamlit UI as they are generated. |
 | **RBAC** | Role-Based Access Control. Users have a `user_role` in state (user/professional/admin) and this determines which tools they can call. |
 | **PII** | Personally Identifiable Information. Patient names, birthdates, phone numbers, postal codes. The input guardrail redacts these before the query is processed further. |
-
