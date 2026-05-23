@@ -1,3 +1,15 @@
+"""Query rewriter node for the oncology RAG pipeline.
+
+A single LLM call (Gemini 2.5 Flash via OpenRouter) performs four tasks in one pass:
+- Rewrites the user query for retrieval clarity.
+- Extracts Milvus metadata filters (guideline_id, grade, chunk_type).
+- Classifies intent: factual | recommendation | comparison | external.
+- Detects whether clinical context is too ambiguous for retrieval and requests clarification.
+
+Clarification is suppressed if the conversation already contains a clarification request
+from the assistant to avoid looping the user with repeated follow-up questions.
+"""
+
 import json
 import os
 import time
@@ -9,6 +21,7 @@ from src.telemetry import append_rag_step, merge_token_usage, usage_from_respons
 
 CHEAP_MODEL = os.getenv("CHEAP_MODEL", "google/gemini-2.5-flash")
 
+# Allowlists used to sanitise LLM output — values outside these sets are silently dropped.
 _VALID_INTENTS = {"factual", "recommendation", "comparison", "external"}
 _VALID_GUIDELINES = {"mamma", "krk", "lunge", "prosta", ""}
 _VALID_GRADES = {"A", "B", "0", ""}
@@ -28,6 +41,19 @@ _VALID_MISSING_DIMENSIONS = {
 
 
 def _decompose_query(query: str, intent: str) -> list[str]:
+    """Split a compound query into independent sub-queries for parallel retrieval.
+
+    Handles comparison queries joined by "und" and additive queries signalled by
+    "sowie", "außerdem", or "zusätzlich". Deduplicates the resulting pieces
+    (case-insensitive) before returning.
+
+    Args:
+        query: The rewritten query string.
+        intent: Classified intent from the LLM; "comparison" enables "und" splitting.
+
+    Returns:
+        A deduplicated list of sub-query strings, or an empty list if no split was needed.
+    """
     pieces: list[str] = []
     lowered = query.lower()
     if intent == "comparison" and " und " in lowered:
@@ -48,10 +74,19 @@ def _decompose_query(query: str, intent: str) -> list[str]:
 
 
 def _client() -> OpenAI:
+    """Build an OpenAI-compatible client pointed at OpenRouter."""
     return OpenAI(base_url="https://openrouter.ai/api/v1", api_key=os.environ["OPENROUTER_API_KEY"])
 
 
 def _strip_code_fence(raw: str) -> str:
+    """Remove markdown code fences that models sometimes wrap around JSON output.
+
+    Args:
+        raw: Raw LLM response text, possibly wrapped in ```json ... ```.
+
+    Returns:
+        The unwrapped content string, ready for ``json.loads``.
+    """
     text = (raw or "").strip()
     if text.startswith("```"):
         text = text.split("```", 1)[1].lstrip("json").strip()
@@ -61,6 +96,17 @@ def _strip_code_fence(raw: str) -> str:
 
 
 def _default_result(state: RAGState) -> dict:
+    """Return a safe fallback rewrite result using the original user query.
+
+    Called when the LLM call fails or returns unparseable output. Preserves the
+    original query and carries forward any existing metadata filters unchanged.
+
+    Args:
+        state: Current RAGState.
+
+    Returns:
+        A partial state dict that can be merged safely without losing prior filter state.
+    """
     return {
         "rewritten_query": state["user_query"],
         "metadata_filters": dict(state.get("metadata_filters", {})),
@@ -80,6 +126,17 @@ def _default_result(state: RAGState) -> dict:
 
 
 def _contains_clarification_marker(text: str) -> bool:
+    """Return True if the text contains a known German clarification request phrase.
+
+    Used to detect whether the assistant already asked the user for more detail in a
+    previous turn, so the pipeline can avoid repeating the same clarification request.
+
+    Args:
+        text: Any assistant message or answer string to inspect.
+
+    Returns:
+        True when a clarification marker phrase is found (case-insensitive).
+    """
     content = (text or "").strip().lower()
     if not content:
         return False
@@ -94,6 +151,19 @@ def _contains_clarification_marker(text: str) -> bool:
 
 
 def _conversation_already_contains_clarification(messages: list, prior_answers: list[str] | None = None) -> bool:
+    """Check whether a clarification request has already appeared in this conversation.
+
+    Searches both the LangGraph message history and the persisted prior-turn answer
+    fields so that the guard works across session boundaries (when messages may have
+    been pruned but prior_answer_* fields are still in state).
+
+    Args:
+        messages: List of conversation messages from ``state["messages"]``.
+        prior_answers: Optional list of prior answer strings from state fields.
+
+    Returns:
+        True if any assistant message or prior answer contains a clarification marker.
+    """
     prior_answers = prior_answers or []
 
     for answer in prior_answers:

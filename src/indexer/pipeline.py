@@ -1,4 +1,22 @@
-# src/indexer/pipeline.py
+"""PDF indexing pipeline: parse → chunk → enrich → embed → upsert to Milvus.
+
+Entry point: ``index_pdf(pdf_path, store, dry_run, enrich)``.
+
+Pipeline stages:
+1. **Parse** — ``extract_pages()`` extracts per-page text from the PDF, skipping
+   TOC pages and cleaning headers/footers.
+2. **Chunk** — ``build_chunks()`` splits text into hierarchical parent/leaf chunks
+   (~550 tokens, 70-token overlap) with structural metadata.
+3. **Metadata** — ``attach_metadata()`` assigns guideline ID, version, grade,
+   evidence level, and recommendation IDs to each chunk.
+4. **Enrich** (optional) — Gemini 2.5 Flash generates a contextual header,
+   hypothetical questions (HyDE), and semantic metadata per chunk.  The enriched
+   text is used as the embedding input, improving semantic retrieval quality.
+5. **Embed** — ``embed_texts()`` calls OpenAI ``text-embedding-3-large`` in
+   batches of 64, producing 3072-dim vectors.
+6. **Upsert** — ``MilvusStore.upsert()`` writes all chunk records to Milvus.
+"""
+
 import json
 import logging
 from pathlib import Path

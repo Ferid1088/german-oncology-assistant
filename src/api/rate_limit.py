@@ -1,3 +1,17 @@
+"""Sliding-window rate limiter for FastAPI endpoints.
+
+Rate limit policies are loaded from ``rate_limit.config.json`` (co-located with
+this file) at startup and cached until ``reload_config()`` is called.
+
+**Algorithm**: per-bucket sliding window using a ``deque`` of request timestamps.
+On each request the deque is pruned to remove entries older than ``window_seconds``,
+then the current length is compared against ``limit``.
+
+**Bucket key**: composed of ``(route_group, api_key, client_ip)`` by default —
+ensuring that different users on the same IP do not share quota, and that the same
+user across different routes has separate limits.
+"""
+
 from __future__ import annotations
 
 import json
@@ -11,6 +25,7 @@ from threading import Lock
 from fastapi import HTTPException, Request
 
 
+# Rate limit config file lives alongside this module for easy editing.
 CONFIG_PATH = Path(__file__).with_name("rate_limit.config.json")
 
 

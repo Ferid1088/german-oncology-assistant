@@ -1,3 +1,19 @@
+"""Hybrid retrieval: combines dense vector search, BM25, and Reciprocal Rank Fusion.
+
+Pipeline for a single ``hybrid_search()`` call:
+1. Embed the query with ``text-embedding-3-large`` (3072 dim).
+2. Run **two** Milvus ANN searches:
+   - *General*: all chunk types, top-20.
+   - *Recommendation-only*: ``chunk_type == "recommendation"``, top-10.
+   Running two searches prevents long prose sections from burying the terse
+   recommendation chunks that clinicians most often need.
+3. Run BM25 sparse search on the pre-built ``bm25_index.pkl``.
+4. Apply RRF twice: ``rrf(general, rec_only)`` then ``rrf(step1, bm25)``.
+5. Transplant rich metadata from the dense results onto BM25-only stubs
+   (BM25 results carry only ``chunk_id`` and ``text``).
+6. Return the fused list for downstream reranking.
+"""
+
 import os
 import json
 import logging
@@ -17,6 +33,28 @@ TOP_K_DENSE = 20
 
 @dataclass
 class RetrievedChunk:
+    """A single retrieved document chunk with all metadata needed for citation.
+
+    Attributes:
+        chunk_id: Unique UUID assigned at index time.
+        text: Raw chunk text (may include parent prefix after expansion).
+        score: Relevance score — reranker score if reranking ran, else RRF score.
+        guideline_id: Source guideline short ID: mamma | krk | lunge | prosta.
+        section_title: Human-readable section heading from the PDF.
+        section_path: Hierarchical breadcrumb, e.g. [``"3"``, ``"3.2"``].
+        page_start: First page number (printed page, not PDF page index).
+        page_end: Last page number; equals ``page_start`` for single-page chunks.
+        chunk_type: Structural classification: recommendation | section | evidence | table.
+        recommendation_grade: Evidence grade: A | B | 0 | "" for non-recommendations.
+        recommendation_id: Dotted ID, e.g. ``"4.2.1"``; empty for prose chunks.
+        evidence_level: Evidence level string, e.g. ``"1a"``; empty if not present.
+        parent_chunk_id: UUID of the parent chunk; empty for top-level chunks.
+        source_filename: Original PDF filename for provenance.
+        contextual_header: LLM-generated 1–2 sentence context summary (from enricher).
+        reference_ids: Inline bibliography reference IDs cited in this chunk.
+        page_numbers: All page numbers covered by this chunk (used for citation ranges).
+    """
+
     chunk_id: str
     text: str
     score: float
@@ -37,6 +75,16 @@ class RetrievedChunk:
 
 
 def _safe_json_loads(value, default):
+    """Deserialise *value* as JSON, returning *default* on any failure.
+
+    Handles the case where Milvus stores JSON arrays/dicts as serialised strings
+    in some collection configurations.
+
+    Args:
+        value: Raw value from Milvus output fields — may be a string, list, dict,
+               or None.
+        default: Value to return when *value* is empty or unparseable.
+    """
     if value in (None, ""):
         return default
     if isinstance(value, (list, dict)):

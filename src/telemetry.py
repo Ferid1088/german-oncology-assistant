@@ -1,8 +1,23 @@
+"""Telemetry utilities: token usage tracking, cost calculation, and tool summarisation.
+
+Token usage is aggregated across all LLM calls in a pipeline run and stored
+in ``RAGState.token_usage``.  Cost is calculated from the pricing table at the
+end of each call using the model-specific rates below.
+
+``append_rag_step`` builds the ``rag_trace`` list that records every node's name,
+status, summary, duration, and optional detail dict for debugging and UI display.
+
+``summarize_tool_result`` converts raw tool output into a short human-readable
+summary string and result-count for the tool call log shown in the UI.
+"""
+
 from __future__ import annotations
 
 from typing import Any
 
 
+# USD cost per 1M tokens for models available via OpenRouter.
+# Update this table when adding new models or when pricing changes.
 MODEL_PRICING_USD_PER_1M: dict[str, dict[str, float]] = {
     "openai/gpt-4o": {"input": 5.0, "output": 15.0},
     "google/gemini-2.5-flash": {"input": 0.3, "output": 2.5},

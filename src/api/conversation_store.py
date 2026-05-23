@@ -1,3 +1,17 @@
+"""SQLite-backed conversation persistence for the oncology RAG API.
+
+Stores conversations and their messages in a SQLite database whose path is configured
+via the ``CONVERSATION_DB_PATH`` environment variable (default: ``data/app_state.db``).
+
+Schema:
+- ``conversations`` — one row per session with soft-delete (``deleted_at``).
+- ``messages`` — one row per user/assistant turn, stores the full RAG payload as JSON.
+
+The schema is created on first connection and automatically migrated when new columns
+(``rag_trace``, ``token_usage``, ``external_search_snippets``) are missing from older
+databases, so upgrades do not require manual migration steps.
+"""
+
 from __future__ import annotations
 
 import json
@@ -11,10 +25,23 @@ from langchain_core.messages import AIMessage, HumanMessage
 
 
 def _utcnow() -> str:
+    """Return the current UTC time as an ISO 8601 string."""
     return datetime.now(timezone.utc).isoformat()
 
 
 def _later_timestamp(previous: str) -> str:
+    """Return a timestamp guaranteed to be strictly after ``previous``.
+
+    When the wall clock has not advanced past the previous timestamp (e.g. two turns
+    within the same microsecond in tests), nudges the candidate forward by 1 µs so that
+    ORDER BY created_at always produces a deterministic user → assistant ordering.
+
+    Args:
+        previous: ISO 8601 timestamp string of the user message.
+
+    Returns:
+        ISO 8601 timestamp string for the assistant message.
+    """
     previous_dt = datetime.fromisoformat(previous)
     candidate = datetime.now(timezone.utc)
     if candidate <= previous_dt:
@@ -23,10 +50,12 @@ def _later_timestamp(previous: str) -> str:
 
 
 def _to_json(value) -> str:
+    """Serialise a list or dict to a JSON string, defaulting to ``[]`` for falsy input."""
     return json.dumps(value or [], ensure_ascii=False)
 
 
 def _from_json(value: str | None, default):
+    """Deserialise a JSON string, returning ``default`` on empty or invalid input."""
     if not value:
         return default
     try:
@@ -36,6 +65,18 @@ def _from_json(value: str | None, default):
 
 
 def _rewritten_query_from_rag_trace(rag_trace: object) -> str:
+    """Extract the rewritten query from the most recent "rewrite" step in a rag_trace.
+
+    Walks the trace in reverse to find the last rewrite step and returns its
+    ``details.rewritten_query`` value.  Used to populate ``prior_rewritten_query``
+    so the duplicate-detection guard in the rewriter can compare across turns.
+
+    Args:
+        rag_trace: The rag_trace list from state, or any non-list value (treated as empty).
+
+    Returns:
+        The rewritten query string, or an empty string if not found.
+    """
     steps = rag_trace if isinstance(rag_trace, list) else []
     for step in reversed(steps):
         if not isinstance(step, dict) or step.get("name") != "rewrite":
@@ -50,6 +91,16 @@ def _rewritten_query_from_rag_trace(rag_trace: object) -> str:
 
 
 class ConversationStore:
+    """Persistent store for conversations and their RAG message payloads.
+
+    Uses a single SQLite file.  All public methods open and close their own
+    connection so the store is safe to call from multiple threads (SQLite
+    serialises writes internally with WAL or the default journal mode).
+
+    Attributes:
+        db_path: Resolved ``Path`` to the SQLite file on disk.
+    """
+
     def __init__(self, db_path: str | Path | None = None):
         configured = db_path or os.getenv("CONVERSATION_DB_PATH", "data/app_state.db")
         self.db_path = Path(configured)

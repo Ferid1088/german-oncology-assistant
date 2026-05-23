@@ -1,3 +1,17 @@
+"""Output safety guardrail: the last node before the response is returned.
+
+Applies three sequential safety checks to the generated answer:
+1. **Faithfulness check** — blocks any answer that has no retrieved evidence chunks,
+   preventing hallucinated responses from reaching the user.
+2. **Dosage safety** — blocks specific dosing figures (mg, mg/m², schema, cycles)
+   unless at least one retrieved chunk directly contains that dosage information.
+3. **Patient-specific warning** — does not block but adds a disclaimer when the
+   query appears to be about a specific patient case rather than a general guideline
+   question.
+
+No LLM is used; all checks are regex-based for deterministic, low-latency safety.
+"""
+
 from __future__ import annotations
 
 import re
@@ -5,6 +19,9 @@ import re
 from src.graph.state import RAGState
 from src.telemetry import append_rag_step
 
+# German regex patterns that indicate the query is about a specific patient,
+# not a general guideline question.  Matches phrases like "mein Patient",
+# "für diese Patientin", "individuell", etc.
 _PATIENT_SPECIFIC_PATTERNS = [
     r"\bmein(?:e|em|en)?\s+patient(?:in)?\b",
     r"\bfür\s+diese[nr]?\s+patient(?:in)?\b",
@@ -35,6 +52,15 @@ _DOSAGE_EVIDENCE_PATTERN = re.compile(
 
 
 def _matches_any(patterns: list[str], text: str) -> bool:
+    """Return True if any regex pattern in *patterns* matches *text*.
+
+    Args:
+        patterns: List of regex pattern strings to test.
+        text: Input string to search; safely handles None/empty.
+
+    Returns:
+        True on the first match; False if *text* is empty or no pattern matches.
+    """
     lowered = (text or "").strip().lower()
     if not lowered:
         return False
@@ -42,14 +68,33 @@ def _matches_any(patterns: list[str], text: str) -> bool:
 
 
 def _is_patient_specific_query(query: str) -> bool:
+    """Return True if the query appears to be about a specific patient case.
+
+    Args:
+        query: Raw user query string.
+    """
     return _matches_any(_PATIENT_SPECIFIC_PATTERNS, query)
 
 
 def _is_dosage_query(query: str) -> bool:
+    """Return True if the query asks for concrete dosage or treatment regimen details.
+
+    Args:
+        query: Raw user query string.
+    """
     return _matches_any(_DOSAGE_QUERY_PATTERNS, query)
 
 
 def _has_direct_dosage_grounding(chunks: list[dict]) -> bool:
+    """Return True if at least one retrieved chunk explicitly contains dosage figures.
+
+    Searches chunk ``text``, ``citation``, and ``section_title`` fields for numeric
+    dosage patterns (e.g. ``"200 mg"``, ``"q3w"``, ``"6 Zyklen"``).  Only allows
+    dosage-related answers when direct evidence is present.
+
+    Args:
+        chunks: Retrieved chunk dicts from ``RAGState.retrieved_chunks``.
+    """
     for chunk in chunks or []:
         haystacks = [
             str(chunk.get("text", "")),
@@ -62,7 +107,22 @@ def _has_direct_dosage_grounding(chunks: list[dict]) -> bool:
 
 
 def apply_output_guardrail(state: RAGState) -> dict:
-    """Basic faithfulness check: ensure answer references at least one source."""
+    """LangGraph node: apply post-generation safety checks to the answer.
+
+    Checks are evaluated in priority order:
+    1. No chunks + non-empty answer → block (prevents hallucination).
+    2. Dosage query without grounded dosage evidence → block with explanation.
+    3. Patient-specific query → pass through but add a safety disclaimer.
+    4. All checks pass → clear all safety fields.
+
+    Args:
+        state: Current RAGState; reads ``answer_professional``,
+               ``retrieved_chunks``, ``user_query``, and ``rag_trace``.
+
+    Returns:
+        Partial RAGState update with ``output_blocked``, optional safety warning
+        fields, and an updated ``rag_trace``.
+    """
     answer = state.get("answer_professional", "")
     chunks = state.get("retrieved_chunks", [])
     query = state.get("user_query", "")

@@ -1,3 +1,24 @@
+"""Answer generation node: produces the final professional and plain-language response.
+
+Implements a two-stage anti-hallucination pipeline:
+
+
+**Path A — fresh retrieval** (``followup_routing != "memory"``)
+  1. ``_extract()`` — Gemini 2.5 Flash copies verbatim sentences from retrieved
+     chunks, tagging each with a ``[N]`` citation number.  If nothing relevant is
+     found the model returns the literal string ``"NICHTS"``, which triggers a
+     refusal response without calling GPT-4o.
+  2. ``_synthesize()`` — GPT-4o rephrases the extracted sentences into a structured
+     answer (professional + plain-language).  GPT-4o never sees the original chunks,
+     only the pre-extracted verbatim text — this structurally prevents knowledge
+     injection from training data.
+
+**Path B — memory reuse** (``followup_routing == "memory"``)
+  Heuristic patterns (sentence count, simplify, shorten) are tried first with no
+  LLM call.  If none match, GPT-4o rewrites the prior answer to fit the new intent,
+  returning a JSON payload.  Falls back to basic text truncation on parse failure.
+"""
+
 import os
 import json
 import re
@@ -22,10 +43,19 @@ _NOT_FOUND = (
 
 
 def _client() -> OpenAI:
+    """Return an OpenRouter-backed OpenAI client."""
     return OpenAI(base_url="https://openrouter.ai/api/v1", api_key=os.environ["OPENROUTER_API_KEY"])
 
 
 def _strip_code_fence(raw: str) -> str:
+    """Remove markdown code fences (```json ... ```) from an LLM response string.
+
+    Args:
+        raw: Raw LLM output that may be wrapped in a code fence.
+
+    Returns:
+        The inner content with fences stripped, or the original string unchanged.
+    """
     text = (raw or "").strip()
     if text.startswith("```"):
         text = text.split("```", 1)[1].lstrip("json").strip()
@@ -35,6 +65,14 @@ def _strip_code_fence(raw: str) -> str:
 
 
 def _split_sentences(text: str) -> list[str]:
+    """Split *text* into individual sentences on terminal punctuation boundaries.
+
+    Args:
+        text: Input text to split.
+
+    Returns:
+        List of non-empty sentence strings.
+    """
     text = (text or "").strip()
     if not text:
         return []
@@ -42,6 +80,15 @@ def _split_sentences(text: str) -> list[str]:
 
 
 def _truncate_sentences(text: str, limit: int) -> str:
+    """Return the first *limit* sentences of *text* joined as a single string.
+
+    Args:
+        text: Source text to truncate.
+        limit: Maximum number of sentences to keep.  0 returns an empty string.
+
+    Returns:
+        Truncated text, or the full text if it has fewer than *limit* sentences.
+    """
     if limit <= 0:
         return ""
     sentences = _split_sentences(text)
@@ -51,6 +98,20 @@ def _truncate_sentences(text: str, limit: int) -> str:
 
 
 def _basic_memory_rewrite(query: str, prior_answer: str, prior_plain: str) -> dict:
+    """Heuristic rewrite of the prior answer without an LLM call.
+
+    Handles common reformulation requests by truncating or selecting the
+    appropriate answer variant (professional vs. plain) based on German
+    keyword patterns in *query*.
+
+    Args:
+        query: Current user query (lowercased internally).
+        prior_answer: Prior professional answer text.
+        prior_plain: Prior plain-language answer text.
+
+    Returns:
+        Dict with ``answer_professional`` and ``answer_plain`` keys.
+    """
     q = query.lower()
     source = prior_plain if any(token in q for token in ["einfach", "einfacher", "einfachen worten"]) and prior_plain else (prior_answer or prior_plain)
     if not source:
@@ -111,6 +172,26 @@ def _rewrite_from_memory(
     turn_intents: list[str],
     valid_numbers: str,
 ) -> dict:
+    """Rewrite the prior answer using GPT-4o to match the current turn intent.
+
+    Sends the prior professional and plain answers to GPT-4o with the current
+    query and classified intents.  Expects a JSON response with
+    ``answer_professional`` and ``answer_plain`` keys.
+
+    Falls back silently to ``_basic_memory_rewrite()`` on any exception
+    (JSON parse error, API failure, etc.) so the turn always produces output.
+
+    Args:
+        llm: OpenAI client instance.
+        query: Current user query.
+        prior_answer: Prior professional answer.
+        prior_plain: Prior plain-language answer.
+        turn_intents: Classified intent labels from the turn router.
+        valid_numbers: Comma-separated citation numbers that may be referenced.
+
+    Returns:
+        Dict with ``answer_professional``, ``answer_plain``, and ``usage`` keys.
+    """
     try:
         started = time.perf_counter()
         resp = llm.chat.completions.create(
@@ -144,6 +225,23 @@ def _rewrite_from_memory(
 
 
 def generate_answer(state: RAGState, client: OpenAI | None = None) -> dict:
+    """LangGraph node: generate the final answer from retrieved evidence or memory.
+
+    Selects Path A (fresh retrieval) or Path B (memory reuse) based on
+    ``followup_routing``.  In Path A, extraction returning ``"NICHTS"`` or fewer
+    than 20 characters short-circuits synthesis and returns a refusal message —
+    this is the primary anti-hallucination guard.
+
+    Args:
+        state: Current RAGState; reads ``followup_routing``, ``retrieved_chunks``,
+               ``prior_*`` fields, ``user_query``, ``turn_intents``, ``token_usage``,
+               and ``rag_trace``.
+        client: Optional pre-built OpenAI client (used in tests).
+
+    Returns:
+        Partial RAGState update with ``answer_professional``, ``answer_plain``,
+        ``citations``, ``disclaimer``, ``token_usage``, and ``rag_trace``.
+    """
     llm = client or _client()
     token_usage = state.get("token_usage", {})
     followup_memory = state.get("followup_routing") == "memory"

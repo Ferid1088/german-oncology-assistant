@@ -26,6 +26,18 @@ _TOKEN_RE = re.compile(r"[^\w]+", re.UNICODE)
 
 
 def _tokenise(text: str) -> list[str]:
+    """Split *text* into lowercase tokens, preserving German compound words.
+
+    Uses a punctuation-boundary tokeniser rather than whitespace-only so that
+    hyphenated compounds (``"nicht-kleinzelligem"``) are split correctly while
+    umlauts and ß are retained within tokens.
+
+    Args:
+        text: Raw chunk or query text.
+
+    Returns:
+        List of lowercase token strings with empty tokens removed.
+    """
     return [t.lower() for t in _TOKEN_RE.split(text) if t]
 
 

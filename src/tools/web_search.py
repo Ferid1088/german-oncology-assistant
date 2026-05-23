@@ -1,3 +1,14 @@
+"""Web search tool: fetches supplemental web snippets for a query.
+
+Tries Google Custom Search first (requires ``GOOGLE_SEARCH_API_KEY`` and
+``GOOGLE_SEARCH_ENGINE_ID`` environment variables).  Falls back to a
+lightweight DuckDuckGo HTML scraper when Google credentials are absent or the
+API call fails.  Results are labelled with a disclosure string reminding the
+user that web snippets are supplemental and not part of the S3 guideline corpus.
+
+This tool is called by the ``external_search`` node, not by the agent loop.
+"""
+
 from __future__ import annotations
 
 import os
@@ -14,6 +25,15 @@ WEB_SEARCH_DISCLOSURE = (
 
 
 def _strip_html(value: str) -> str:
+    """Remove HTML tags from *value* and normalise whitespace.
+
+    Args:
+        value: Raw HTML string, or None/empty.
+
+    Returns:
+        Plain text with HTML entities decoded and runs of whitespace collapsed.
+    """
+    # Strip all tags, then decode entities, then collapse whitespace.
     text = re.sub(r"<[^>]+>", " ", value or "")
     text = unescape(text)
     text = re.sub(r"\s+", " ", text).strip()
@@ -21,6 +41,22 @@ def _strip_html(value: str) -> str:
 
 
 def _google_custom_search(query: str, max_results: int) -> dict | None:
+    """Call the Google Custom Search JSON API and return normalised results.
+
+    Returns ``None`` (instead of raising) when API credentials are not
+    configured, so the caller can fall through to the DuckDuckGo fallback.
+
+    Args:
+        query: Search query string.
+        max_results: Maximum results to return (capped at 5 by the API).
+
+    Returns:
+        Result dict with ``query``, ``provider``, ``results``, and ``disclosure``
+        keys, or ``None`` if credentials are missing.
+
+    Raises:
+        httpx.HTTPStatusError: On non-2xx API responses.
+    """
     api_key = os.getenv("GOOGLE_SEARCH_API_KEY", "").strip()
     engine_id = os.getenv("GOOGLE_SEARCH_ENGINE_ID", "").strip()
     if not api_key or not engine_id:
@@ -59,6 +95,23 @@ def _google_custom_search(query: str, max_results: int) -> dict | None:
 
 
 def _duckduckgo_fallback(query: str, max_results: int) -> dict:
+    """Scrape DuckDuckGo HTML search results as a fallback when Google is unavailable.
+
+    Parses the ``result__a`` anchor and ``result__snippet`` elements from
+    DuckDuckGo's HTML interface using a regex — fragile by nature but avoids
+    requiring an API key for basic functionality.
+
+    Args:
+        query: Search query string.
+        max_results: Maximum results to return (3–5 recommended).
+
+    Returns:
+        Result dict with ``query``, ``provider`` ``"duckduckgo"``, ``results``,
+        and ``disclosure`` keys.
+
+    Raises:
+        httpx.HTTPError: On network or HTTP failures.
+    """
     timeout = float(os.getenv("WEB_SEARCH_TIMEOUT", "15"))
     encoded_query = quote_plus(query)
     with httpx.Client(timeout=timeout, follow_redirects=True) as client:
@@ -102,6 +155,21 @@ def _duckduckgo_fallback(query: str, max_results: int) -> dict:
 
 
 def web_search_snippets_tool(query: str, max_results: int = 5) -> dict:
+    """Fetch supplemental web snippets for *query* using the best available provider.
+
+    Provider priority:
+    1. Google Custom Search (if credentials configured).
+    2. DuckDuckGo HTML scraper (automatic fallback).
+    3. Empty result dict with ``provider: "unavailable"`` on all failures.
+
+    Args:
+        query: Search query string.
+        max_results: Desired result count; clamped to [3, 5].
+
+    Returns:
+        Dict with ``query``, ``provider``, ``results`` (list of title/snippet/url),
+        ``disclosure``, and optionally ``error`` on failure.
+    """
     max_results = max(3, min(max_results, 5))
     try:
         google_result = _google_custom_search(query, max_results=max_results)

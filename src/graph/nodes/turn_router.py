@@ -1,3 +1,17 @@
+"""Turn router node: classifies user intent and decides whether to reuse memory or retrieve.
+
+Runs after the rewriter and before the agent.  Uses a two-stage strategy:
+1. **Heuristic fast-path** — regex patterns match common German follow-up phrases
+   (e.g. "kürzer", "in 3 Sätzen") and return a routing decision without an LLM call.
+2. **LLM fallback** — Gemini 2.5 Flash classifies the turn intent from the
+   conversation history and returns a JSON payload with ``turn_intents`` and
+   ``followup_routing``.  Falls back to ``retrieve`` on any parse error.
+
+The ``followup_routing`` value controls the agent node:
+- ``"memory"`` — skip full retrieval, reuse prior answer and chunks.
+- ``"retrieve"`` — run the full tool-calling loop.
+"""
+
 import json
 import os
 import re
@@ -9,11 +23,26 @@ from src.prompts.turn_router import TURN_ROUTER_PROMPT
 from src.telemetry import append_rag_step, merge_token_usage, usage_from_response
 
 CHEAP_MODEL = os.getenv("CHEAP_MODEL", "google/gemini-2.5-flash")
+# Allowed intent labels returned by the LLM; unknown values are discarded.
 _VALID_INTENTS = {"clarify", "simplify", "expand", "refine", "new_query"}
+# Allowed routing values; unknown values fall back to "retrieve" for safety.
 _VALID_ROUTES = {"memory", "retrieve"}
 
 
 def _heuristic_followup_route(query: str, has_history: bool) -> dict | None:
+    """Return a routing decision if the query matches a known follow-up pattern.
+
+    Avoids an LLM call for common German phrases that unambiguously signal a
+    reformulation request (simplify, shorten, expand) on the prior answer.
+
+    Args:
+        query: Raw user query for the current turn.
+        has_history: True when the conversation has at least one prior turn.
+
+    Returns:
+        A partial state dict with ``turn_intents`` and ``followup_routing``
+        if a pattern matches, or ``None`` to fall through to the LLM.
+    """
     if not has_history:
         return None
 
@@ -57,10 +86,19 @@ def _heuristic_followup_route(query: str, has_history: bool) -> dict | None:
 
 
 def _client() -> OpenAI:
+    """Return an OpenRouter-backed OpenAI client."""
     return OpenAI(base_url="https://openrouter.ai/api/v1", api_key=os.environ["OPENROUTER_API_KEY"])
 
 
 def _history_block(messages: list) -> str:
+    """Render the last 6 conversation messages as a plain-text block for the prompt.
+
+    Args:
+        messages: List of LangChain message objects from ``RAGState.messages``.
+
+    Returns:
+        Newline-joined ``role: content`` pairs, or an empty string if no messages.
+    """
     if not messages:
         return ""
     recent = messages[-6:]
@@ -74,6 +112,26 @@ def _history_block(messages: list) -> str:
 
 
 def route_turn(state: RAGState, client: OpenAI | None = None) -> dict:
+    """LangGraph node: classify turn intent and select memory vs. retrieve routing.
+
+    Priority:
+    1. No history → always ``retrieve``.
+    2. Heuristic match → return immediately without LLM call.
+    3. LLM classification → Gemini 2.5 Flash parses intent from conversation history.
+    4. LLM error → safe fallback to ``retrieve``.
+
+    The ``"new_query"`` intent always forces ``"retrieve"`` regardless of what
+    the LLM returns for ``followup_routing``.
+
+    Args:
+        state: Current RAGState; reads ``messages``, ``user_query``, ``rag_trace``,
+               ``token_usage``.
+        client: Optional pre-built OpenAI client (used in tests).
+
+    Returns:
+        Partial RAGState update with ``turn_intents``, ``followup_routing``,
+        ``token_usage``, and an updated ``rag_trace``.
+    """
     messages = state.get("messages", [])
     if not messages:
         return {

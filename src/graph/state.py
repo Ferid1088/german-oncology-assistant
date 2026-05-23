@@ -1,61 +1,84 @@
+"""Shared LangGraph state schema for the oncology RAG pipeline.
+
+Every node in the graph reads from and writes to a single ``RAGState`` instance.
+Fields are grouped by the pipeline stage that owns them.  Nodes must only write
+fields they are responsible for; all other fields are carried through unchanged.
+"""
+
 from typing import Annotated
 from typing_extensions import TypedDict
 from langgraph.graph.message import add_messages
 
 
 class RAGState(TypedDict):
-    # Input
-    user_query: str
-    session_id: str
+    """Central state container passed between all LangGraph nodes.
 
-    # Preprocessing
-    rewritten_query: str
-    metadata_filters: dict[str, str]    # guideline_id, grade, chunk_type
-    intent: str                          # factual | recommendation | comparison | external
-    query_decomposition: list[str]
-    requires_clarification: bool
-    missing_clinical_dimensions: list[str]
-    clarification_rationale: str | None
-    expected_clarification: str | None
-    user_role: str
-    allowed_sources: list[str]
+    Field groups:
+    - **Input**: raw user-supplied values for the current turn.
+    - **Preprocessing**: normalised query and routing metadata produced by the
+      rewrite and turn-router nodes.
+    - **Retrieval**: chunks returned by the agent tool-calling loop.
+    - **Generation**: final answer text and citation metadata.
+    - **Guardrails**: flags and reasons set by input/output safety nodes.
+    - **Telemetry**: per-call token usage, cost, and full pipeline trace.
+    - **Turn routing**: intent classification and conversation-reuse flags.
+    - **Conversation memory**: LangChain message history with merge semantics.
+    """
 
-    # Retrieval
-    retrieved_chunks: list[dict]
-    confidence: float                    # 0.0–1.0 from reranker scores
-    escalation_reason: str
+    # ------------------------------------------------------------------ Input
+    user_query: str          # Raw query exactly as submitted by the user.
+    session_id: str          # Opaque identifier that groups turns into a conversation.
 
-    # Generation
-    answer_professional: str
-    answer_plain: str
-    citations: list[dict]
-    disclaimer: str
+    # -------------------------------------------------------------- Preprocessing
+    rewritten_query: str                  # Normalised, clinically expanded query.
+    metadata_filters: dict[str, str]      # Extracted Milvus filters: guideline_id, grade, chunk_type.
+    intent: str                           # Query intent: factual | recommendation | comparison | external.
+    query_decomposition: list[str]        # Sub-queries when the query spans multiple topics.
+    requires_clarification: bool          # True when the rewriter needs more clinical detail.
+    missing_clinical_dimensions: list[str]  # E.g. ["disease_stage", "line_of_therapy"].
+    clarification_rationale: str | None   # Why clarification is needed (shown to the user).
+    expected_clarification: str | None    # The specific follow-up question asked of the user.
+    user_role: str                        # RBAC role: user | professional | admin.
+    allowed_sources: list[str]            # Permitted data sources: guidelines | web | pubmed.
 
-    # Guardrails
-    input_blocked: bool
-    input_block_reason: str
-    output_blocked: bool
-    redacted_query: str
-    safety_warning: str | None
-    safety_explanation: str | None
-    safety_title: str | None
+    # --------------------------------------------------------------- Retrieval
+    retrieved_chunks: list[dict]   # Ranked, deduplicated chunks from the agent tool loop.
+    confidence: float              # Mean reranker score of top-3 chunks (0.0–1.0).
+    escalation_reason: str         # Why escalation was triggered: low_score | low_result_count | "".
 
-    # Tool calls (for display)
-    tool_calls_log: list[dict]
-    rag_trace: list[dict]
-    token_usage: dict
-    external_search_snippets: list[dict]
+    # --------------------------------------------------------------- Generation
+    answer_professional: str   # Full clinical answer for healthcare professionals.
+    answer_plain: str          # Plain-language summary for patients or lay readers.
+    citations: list[dict]      # Citation metadata for chunks referenced in the answer.
+    disclaimer: str            # Standard guideline-only disclaimer appended to every answer.
 
-    # Turn understanding / conversation reuse
-    turn_intents: list[str]
-    followup_routing: str                  # memory | retrieve
-    prior_answer_professional: str
-    prior_answer_plain: str
-    prior_citations: list[dict]
-    prior_retrieved_chunks: list[dict]
-    prior_rewritten_query: str
-    prior_rag_trace: list[dict]
-    prior_external_search_snippets: list[dict]
+    # --------------------------------------------------------------- Guardrails
+    input_blocked: bool            # True when the input guardrail rejected the request.
+    input_block_reason: str        # German-language explanation returned to the user.
+    output_blocked: bool           # True when the output guardrail suppressed the answer.
+    redacted_query: str            # Query with PII replaced by [REDACTED].
+    safety_warning: str | None     # Short English safety label (shown in UI).
+    safety_explanation: str | None # Detailed explanation of why the output was limited.
+    safety_title: str | None       # UI heading for the safety panel.
 
-    # Conversation memory
+    # --------------------------------------------------------------- Telemetry
+    tool_calls_log: list[dict]           # One entry per tool invocation (tool, args, summary, status).
+    rag_trace: list[dict]                # Ordered pipeline steps: name, status, summary, duration_ms.
+    token_usage: dict                    # Aggregated token counts and USD cost across all LLM calls.
+    external_search_snippets: list[dict] # Web/DuckDuckGo result snippets appended after main answer.
+
+    # ----------------------------------------------- Turn routing / conversation reuse
+    turn_intents: list[str]  # Classified intents for this turn, e.g. ["clarify", "new_query"].
+    followup_routing: str    # Routing decision: "memory" (reuse prior answer) | "retrieve" (full pipeline).
+    prior_answer_professional: str        # Previous turn's professional answer (for memory reuse).
+    prior_answer_plain: str               # Previous turn's plain answer.
+    prior_citations: list[dict]           # Previous turn's citations.
+    prior_retrieved_chunks: list[dict]    # Previous turn's retrieved chunks.
+    prior_rewritten_query: str            # Previous turn's rewritten query (used for duplicate detection).
+    prior_rag_trace: list[dict]           # Previous turn's pipeline trace (used to detect prior disclaimer).
+    prior_external_search_snippets: list[dict]  # Previous turn's web snippets.
+
+    # -------------------------------------------------------- Conversation memory
+    # add_messages merges incoming message lists rather than overwriting,
+    # preserving the full multi-turn conversation history across graph invocations.
     messages: Annotated[list, add_messages]

@@ -23,6 +23,18 @@ api_env["MILVUS_URI"] = ""
 
 
 def wait_for_api(url: str, timeout_seconds: int = 30) -> None:
+    """Poll the API health endpoint until it returns 2xx or the timeout elapses.
+
+    Polls every 500 ms.  This is called after starting the FastAPI subprocess so
+    Streamlit is not launched until the API is ready to accept connections.
+
+    Args:
+        url: Full URL to poll (e.g. ``"http://localhost:8000/health"``).
+        timeout_seconds: Maximum seconds to wait before raising.
+
+    Raises:
+        RuntimeError: When the API has not become ready within ``timeout_seconds``.
+    """
     deadline = time.time() + timeout_seconds
     last_error = None
     while time.time() < deadline:
@@ -37,6 +49,16 @@ def wait_for_api(url: str, timeout_seconds: int = 30) -> None:
 
 
 def shutdown(signum, frame):
+    """SIGINT / SIGTERM handler: terminate all child processes and exit cleanly.
+
+    Registered for both signals so that ``Ctrl+C`` and ``kill`` behave identically.
+    Each process receives ``terminate()`` (SIGTERM) — forceful kill is not used so
+    processes can flush buffers and release the SQLite/Milvus file locks.
+
+    Args:
+        signum: Signal number (unused, required by the signal handler signature).
+        frame: Current stack frame (unused).
+    """
     print("\nShutting down...")
     for p in processes:
         p.terminate()

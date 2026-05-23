@@ -1,3 +1,14 @@
+"""Parent chunk expansion: enriches leaf chunks with their parent's context text.
+
+Each leaf chunk in the Milvus collection stores a ``parent_chunk_id`` pointing to
+a broader section chunk.  Fetching and prepending the parent text gives the answer
+node more context without including it in the initial retrieval scoring (where it
+could unfairly outrank shorter, more precise recommendation chunks).
+
+Page numbers from parent and leaf are merged so the citation range covers the
+full span of text shown to the LLM.
+"""
+
 import os
 from pymilvus import MilvusClient
 from src.citations import merge_page_numbers, normalize_page_numbers
@@ -39,6 +50,8 @@ def expand_to_parents(
                 if row.get("chunk_id")
             }
         except Exception:
+            # Silently degrade: if the parent fetch fails (network, Milvus error),
+            # return chunks unexpanded rather than failing the whole request.
             parent_text_by_id = {}
             parent_pages_by_id = {}
 

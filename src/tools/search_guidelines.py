@@ -1,3 +1,10 @@
+"""Core RAG retrieval tool: hybrid search → rerank → parent expansion.
+
+This is the primary tool called by the agent on every turn (forced on iteration 1).
+It orchestrates the full retrieval pipeline and returns a serialisable list of
+chunk dicts enriched with citation metadata ready for the answer generation node.
+"""
+
 from src.citations import format_page_reference
 from src.retrieval.search import hybrid_search
 from src.retrieval.reranker import rerank
@@ -14,6 +21,8 @@ def search_guidelines_tool(
     Core RAG retrieval tool. Returns ranked chunks with citation metadata.
     Suitable for use as a LangGraph tool function.
     """
+    # Fetch more candidates than needed so the reranker has a larger pool
+    # to work with; capped at 20 to keep Milvus latency predictable.
     candidate_pool_size = min(20, max(top_k, top_k * 3))
 
     candidates = hybrid_search(

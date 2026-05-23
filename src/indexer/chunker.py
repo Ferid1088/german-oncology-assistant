@@ -1,3 +1,16 @@
+"""Hierarchical chunker for oncology guideline text.
+
+Converts a flat list of ``StructuralUnit`` objects (from ``detector.detect_structure``)
+into a tree of ``Chunk`` records with parent/root linkage.  Three chunk types are
+produced:
+- ``section`` (parent, is_leaf=False) — created for each numbered heading.
+- ``section`` (leaf, is_leaf=True) — sliding-window prose slices under a heading.
+- ``recommendation`` (leaf, is_leaf=True) — a complete "Empfehlung" block with grade.
+
+Prose leaves use a sliding window of ``TARGET_TOKENS`` ≈ 550 tokens with an
+``OVERLAP_TOKENS`` ≈ 70-token back-step to preserve context at chunk boundaries.
+"""
+
 import uuid
 from dataclasses import dataclass, field
 from src.indexer.detector import detect_structure
@@ -22,6 +35,29 @@ OVERLAP_TOKENS = 70       # ~12%
 
 @dataclass
 class Chunk:
+    """A single indexable unit produced by the chunking pipeline.
+
+    Attributes:
+        chunk_id: UUID string, unique across all guidelines.
+        guideline_id: Short identifier for the source guideline (e.g. "mamma").
+        guideline_version: Version string extracted from the pipeline GUIDELINE_MAP.
+        text: The raw text content that will be embedded and stored.
+        chunk_type: One of: "section", "recommendation", "evidence", "rationale", "table".
+        is_leaf: True when the chunk should be retrieved; False for parent/heading chunks.
+        parent_chunk_id: UUID of the immediate parent heading chunk, or None for roots.
+        root_chunk_id: UUID of the top-level (depth-1) heading ancestor, or None.
+        section_path: Ordered list of section numbers from root to this chunk's heading.
+        section_title: Text of the immediately enclosing heading.
+        recommendation_id: Numeric id string from the "Empfehlung" label (e.g. "4.7").
+        recommendation_grade: Extracted grade character: "A", "B", or "0".
+        evidence_level: Extracted evidence level string (e.g. "1a", "2b").
+        page_start: Physical PDF page number where the chunk begins (1-based).
+        page_end: Physical PDF page number where the chunk ends (1-based).
+        chunk_index_in_parent: Zero-based position among siblings under the same parent.
+        source_filename: Original PDF filename, attached by ``attach_metadata``.
+        is_current: False when this chunk belongs to a superseded guideline version.
+    """
+
     chunk_id: str
     guideline_id: str
     guideline_version: str
@@ -43,6 +79,7 @@ class Chunk:
 
 
 def _make_id() -> str:
+    """Generate a new UUID string for use as a chunk_id."""
     return str(uuid.uuid4())
 
 
@@ -52,6 +89,27 @@ def build_chunks(
     text: str,
     page_boundaries: list[PageBoundary] | None = None,
 ) -> list[Chunk]:
+    """Convert cleaned guideline text into a list of indexable ``Chunk`` objects.
+
+    Orchestrates the full structure-aware chunking pass:
+    1. Calls ``detect_structure`` to classify every line into headings, recommendations,
+       prose, or bibliography entries.
+    2. Maintains a running section path and parent/root chain as headings are consumed.
+    3. Accumulates prose lines in a buffer and flushes them as sliding-window leaf chunks
+       when a structural boundary (heading, recommendation, bib entry) is encountered.
+    4. Maps each chunk back to a physical PDF page via ``page_boundaries``.
+
+    Args:
+        guideline_id: Short guideline key (e.g. "mamma"), stored on every chunk.
+        guideline_version: Version string stored on every chunk.
+        text: Pre-cleaned full document text (output of ``parser.clean_text``).
+        page_boundaries: Optional list of ``(line_start, page_number)`` tuples used to
+            assign ``page_start``/``page_end`` fields.  When ``None``, page fields are left
+            as ``None``.
+
+    Returns:
+        Ordered list of ``Chunk`` objects ready for embedding and upsert.
+    """
     units = detect_structure(text)
     chunks: list[Chunk] = []
     current_section_path: list[str] = []

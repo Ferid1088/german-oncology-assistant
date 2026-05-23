@@ -1,3 +1,10 @@
+"""Empfehlung lookup tool: fetches a specific clinical recommendation by its dotted ID.
+
+Performs a direct Milvus exact-match query for ``recommendation_id`` within a
+named guideline, returning the verbatim text with grade and evidence level.
+Used when the user references a specific recommendation number (e.g. "4.2.1").
+"""
+
 import os
 from pymilvus import MilvusClient
 
@@ -15,6 +22,8 @@ def lookup_empfehlung_tool(
     Returns the full text with grade, evidence level, and source metadata.
     """
     c = client or MilvusClient(uri=MILVUS_URI)
+    # Milvus filter expression: exact match on all three fields to avoid
+    # returning prose chunks that share the same section number prefix.
     expr = (
         f'guideline_id == "{guideline_id}" and '
         f'recommendation_id == "{recommendation_id}" and '

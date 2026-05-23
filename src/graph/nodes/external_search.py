@@ -1,3 +1,15 @@
+"""External web search node: appends supplemental snippets after main answer generation.
+
+This is the final node in the happy path.  It runs Google Custom Search (with a
+DuckDuckGo fallback) and attaches up to 5 web snippets to the response for context
+that may not be covered by the indexed oncology guidelines.
+
+The node is skipped silently when:
+- The input or output guardrail has blocked the turn.
+- The turn requires clarification (no answer was generated).
+- The ``"web"`` source is not in the request's ``allowed_sources`` list.
+"""
+
 from __future__ import annotations
 
 from src.graph.permissions import is_source_allowed
@@ -7,6 +19,22 @@ from src.tools.web_search import web_search_snippets_tool
 
 
 def run_external_search(state: RAGState) -> dict:
+    """LangGraph node: fetch supplemental web snippets for the current query.
+
+    Skips execution when the turn is blocked, requires clarification, or the
+    ``"web"`` source is not permitted.  Uses the best available query string:
+    rewritten > redacted > raw user query.
+
+    Args:
+        state: Current RAGState; reads ``input_blocked``, ``output_blocked``,
+               ``requires_clarification``, ``allowed_sources``,
+               ``rewritten_query``, ``redacted_query``, ``user_query``,
+               ``tool_calls_log``, and ``rag_trace``.
+
+    Returns:
+        Partial RAGState update with ``external_search_snippets``,
+        ``tool_calls_log``, and an updated ``rag_trace``.
+    """
     if state.get("input_blocked") or state.get("output_blocked") or state.get("requires_clarification"):
         return {
             "external_search_snippets": [],

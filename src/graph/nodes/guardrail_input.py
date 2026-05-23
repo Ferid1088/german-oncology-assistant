@@ -1,6 +1,22 @@
+"""Input safety guardrail: the first node in the LangGraph pipeline.
+
+Performs three sequential checks before any LLM sees the query:
+1. Prompt-injection detection — blocks known attack patterns using exact
+   substring matching (deterministic, cannot be jailbroken by a clever prompt).
+2. Off-topic filtering — blocks queries clearly unrelated to oncology/medicine.
+3. PII redaction — replaces personal identifiers with ``[REDACTED]`` so that
+   patient data is never forwarded to external LLM APIs.
+
+No LLM is used here intentionally: using an LLM to detect prompt injections
+would create a circular vulnerability where the attacker can trick the guard.
+"""
+
 from src.graph.state import RAGState
 from src.telemetry import append_rag_step
 
+# Keywords that indicate the query is clearly unrelated to medicine/oncology.
+# The list is intentionally narrow — borderline topics are passed through and
+# handled by the LLM-based rewriter which has more nuanced intent detection.
 BLOCK_KEYWORDS = [
     "wetter", "weather", "sport", "fußball", "soccer", "football", "aktie",
     "stock", "rezept", "recipe", "kochen", "cooking", "politik", "politics",
@@ -27,6 +43,17 @@ PII_PATTERNS = [
 
 
 def _redact_pii(query: str) -> str:
+    """Replace personal identifiers in *query* with the literal ``[REDACTED]``.
+
+    Applies each pattern in ``PII_PATTERNS`` sequentially so that a query
+    containing multiple PII types is fully sanitised in one pass.
+
+    Args:
+        query: Raw user query string.
+
+    Returns:
+        Query with all detected PII tokens replaced by ``[REDACTED]``.
+    """
     import re
 
     redacted = query
@@ -36,6 +63,20 @@ def _redact_pii(query: str) -> str:
 
 
 def apply_input_guardrail(state: RAGState) -> dict:
+    """LangGraph node: validate and sanitise the incoming user query.
+
+    Checks are applied in priority order:
+    1. Prompt-injection patterns — hard block, no downstream processing.
+    2. Off-topic keywords — hard block with a German explanation.
+    3. PII redaction — query passes through with sensitive tokens masked.
+
+    Args:
+        state: Current RAGState; reads ``user_query`` and ``rag_trace``.
+
+    Returns:
+        Partial RAGState update with ``input_blocked``, ``input_block_reason``,
+        ``redacted_query``, and an updated ``rag_trace``.
+    """
     raw_query = state["user_query"]
     query = raw_query.lower()
 

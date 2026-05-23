@@ -1,3 +1,18 @@
+"""FastAPI chat endpoint — the main entry point for user queries.
+
+Handles ``POST /chat`` requests end-to-end:
+1. Authenticates the request via ``X-API-Key`` header.
+2. Enforces the configured rate limit for the ``chat`` route group.
+3. Loads conversation memory from SQLite for the given ``session_id``.
+4. Constructs the initial ``RAGState`` (all 35+ fields) and invokes the LangGraph pipeline.
+5. Persists the turn (user + assistant messages) to SQLite.
+6. Returns a Server-Sent Event (SSE) stream with a single ``data:`` frame containing the
+   full JSON payload, followed by ``data: [DONE]``.
+
+Rate-limit and unhandled exceptions are caught and returned as structured SSE payloads
+rather than HTTP 4xx/5xx so the Streamlit UI always receives a parseable response.
+"""
+
 import json
 import os
 import logging
@@ -21,6 +36,19 @@ DEFAULT_ALLOWED_SOURCES = ["guidelines", "web"]
 
 
 def _combine_answer_parts(answer_professional: str, answer_plain: str) -> str:
+    """Merge the two answer variants into a single display string for the message store.
+
+    When only the professional answer is present (e.g. clarification or blocked
+    responses), returns it alone.  When both are present, labels them with the
+    Ola persona prefixes used in the Streamlit UI.
+
+    Args:
+        answer_professional: Structured clinical answer from the answer node.
+        answer_plain: Plain-language summary from the answer node.
+
+    Returns:
+        A single combined string, or an empty string if both inputs are empty.
+    """
     if not answer_plain:
         return (answer_professional or "").strip()
 
@@ -33,6 +61,7 @@ def _combine_answer_parts(answer_professional: str, answer_plain: str) -> str:
 
 
 def get_graph():
+    """Return the singleton compiled LangGraph, building it on first call."""
     global _graph
     if _graph is None:
         _graph = build_graph(checkpointer=build_checkpointer())
@@ -40,14 +69,17 @@ def get_graph():
 
 
 def _supports_checkpointing(graph) -> bool:
+    """Return True when the graph was compiled with a LangGraph checkpointer."""
     return getattr(graph, "checkpointer", None) is not None
 
 
 def _load_session_memory(session_id: str) -> dict:
+    """Load prior-turn memory fields from the conversation store for a session."""
     return get_conversation_store().load_session_memory(session_id)
 
 
 def _save_session_memory(session_id: str, final_state: dict, user_query: str) -> None:
+    """Persist the completed turn to the conversation store."""
     get_conversation_store().append_turn(
         conversation_id=session_id,
         user_query=user_query,
@@ -60,6 +92,17 @@ def _save_session_memory(session_id: str, final_state: dict, user_query: str) ->
 
 
 class ChatRequest(BaseModel):
+    """Validated request body for ``POST /chat``.
+
+    Attributes:
+        query: The user's question; stripped and validated for length.
+        session_id: Identifier for the conversation thread; used for memory and rate limiting.
+        guideline_id: Optional filter restricting retrieval to a single guideline
+            (one of: "mamma", "krk", "lunge", "prosta").
+        grade: Optional filter restricting retrieval to a recommendation grade
+            (one of: "A", "B", "0").
+    """
+
     model_config = ConfigDict(str_strip_whitespace=True)
 
     query: str = Field(min_length=3, max_length=1500)

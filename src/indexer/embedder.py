@@ -1,7 +1,15 @@
+"""Text embedding module: batched vector generation via OpenRouter.
+
+Wraps the OpenAI embeddings API (accessed through OpenRouter) and splits large
+input lists into fixed-size batches to stay within API request size limits.
+Results are sorted by their response index to guarantee ordering consistency.
+"""
+
 import os
 from openai import OpenAI
 
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "openai/text-embedding-3-large")
+# Max texts per API call; balances request size against latency.
 EMBED_BATCH_SIZE = 64
 
 

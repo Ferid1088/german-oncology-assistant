@@ -1,3 +1,15 @@
+"""PDF text extraction and cleaning for German S3 oncology guideline PDFs.
+
+Handles the specific formatting conventions of the Leitlinienprogramm Onkologie:
+- Extracts printed page numbers from the two-line copyright header that appears on
+  every physical page (``© Leitlinienprogramm Onkologie | … | Juni 2021 \n 238``).
+- Strips the copyright block so its page number does not bleed into prose chunks.
+- Skips table-of-contents pages detected by dot-leader lines (e.g. "4.3.3.7 … 94").
+- Repairs soft German hyphenation across line breaks (e.g. "chemo-\ntherapie").
+- Merges continuation lines so the structural detector sees clean paragraphs.
+- Normalises split recommendation headers so ``detect_structure`` can match them.
+"""
+
 import re
 from pathlib import Path
 from typing import TypedDict
@@ -103,7 +115,18 @@ def clean_text(text: str) -> str:
 
 
 def _is_heading(stripped_line: str) -> bool:
-    # Numbered headings and recommendations: require at least X.Y (two parts) + optional trailing dot
+    """Return True if the line is a structural heading or recommendation marker.
+
+    Used by ``clean_text`` to decide whether to merge the current line with the next.
+    Structural lines must never be merged with their successor.
+
+    Args:
+        stripped_line: A single stripped line of text.
+
+    Returns:
+        True for numbered headings, recommendation lines, and grade/evidence markers.
+    """
+    # Numbered headings: require at least X.Y (two dotted parts) + uppercase first word.
     # e.g. "4.7.3. Adjuvante Chemotherapie" or "4.116. Evidenzbasierte Empfehlung"
     if re.match(r"^\d{1,3}(?:\.\d{1,3})+\.?\s+[A-ZÄÖÜ]", stripped_line):
         return True
@@ -114,6 +137,17 @@ def _is_heading(stripped_line: str) -> bool:
 
 
 def _ends_sentence(line: str) -> bool:
+    """Return True if the line ends with a sentence-terminating punctuation mark.
+
+    Used by ``clean_text`` to decide whether the next line is a continuation.
+    A line ending with '.', ':', '!', or '?' is treated as complete.
+
+    Args:
+        line: A single line of text (may have trailing whitespace).
+
+    Returns:
+        True when the line should not be merged with its successor.
+    """
     return line.rstrip().endswith((".", ":", "!", "?"))
 
 

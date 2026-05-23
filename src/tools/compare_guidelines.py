@@ -1,4 +1,12 @@
-import json
+"""Guideline comparison tool: runs parallel searches and returns side-by-side results.
+
+Calls ``search_guidelines_tool`` twice with the same topic but different
+``guideline_id`` values, then packages both result sets into a single payload.
+Includes a ``summary_hint`` field that instructs GPT-4o to compare only on the
+basis of the retrieved passages, not its training knowledge.
+"""
+
+import json  # noqa: F401 — kept for potential serialisation in callers
 
 from src.tools.search_guidelines import search_guidelines_tool
 

@@ -19,13 +19,20 @@ COLLECTION = "oncology_guidelines"
 
 
 def _rebuild_bm25(dry_run: bool) -> None:
-    """Query all leaf chunks from Milvus and rebuild the BM25 pickle index."""
+    """Query all leaf chunks from Milvus and rebuild the on-disk BM25 pickle index.
+
+    Paginates Milvus results at 1000 records per page to avoid memory spikes on large
+    corpora.  After building, calls ``reload_bm25_index`` so the in-process singleton
+    is updated immediately without restarting the API.
+
+    Args:
+        dry_run: When True, skips the BM25 rebuild entirely (used for parse/chunk tests).
+    """
     if dry_run:
         return
     print("Building BM25 index from Milvus corpus...")
     c = MilvusClient(uri=MILVUS_URI)
     c.load_collection(COLLECTION)
-    # Fetch all leaf chunks in pages of 1000
     all_chunks: list[dict] = []
     offset = 0
     while True:
@@ -48,6 +55,16 @@ def _rebuild_bm25(dry_run: bool) -> None:
 
 
 def main():
+    """CLI entry point for the guideline indexing pipeline.
+
+    Usage examples::
+
+        python scripts/run_indexer.py                          # index all PDFs in GUIDELINE_MAP
+        python scripts/run_indexer.py --pdf mammakarzinom.pdf  # index one guideline
+        python scripts/run_indexer.py --reset                  # drop collection first, then re-index
+        python scripts/run_indexer.py --dry-run                # parse/chunk only, no Milvus writes
+        python scripts/run_indexer.py --no-enrich              # skip LLM enrichment (faster)
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--pdf", help="Single PDF filename to index (from GUIDELINE_MAP)")
     parser.add_argument("--dry-run", action="store_true", help="Parse and chunk but do not write to Milvus")

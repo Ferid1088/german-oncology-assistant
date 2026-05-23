@@ -1,3 +1,21 @@
+"""Agent node: GPT-4o tool-calling loop that drives guideline retrieval.
+
+Runs a maximum of 2 iterations:
+- **Iteration 1** — ``search_guidelines`` is *forced* via ``tool_choice`` so that
+  every query always starts with at least one vector search, regardless of what
+  the LLM might otherwise decide.
+- **Iteration 2** — ``tool_choice`` is set to ``"auto"``, allowing GPT-4o to call
+  any tool (lookup, compare, drug search, BMI, PubMed) or stop if the first
+  iteration already gathered sufficient context.
+
+A deduplication guard (``searched_queries`` set) prevents GPT-4o from issuing
+the same ``search_guidelines`` query twice, which would waste tokens and add no
+new information.
+
+The node is bypassed entirely when ``followup_routing == "memory"``, in which case
+the prior turn's chunks are returned directly without any database access.
+"""
+
 import os
 import json
 import time
@@ -112,14 +130,33 @@ TOOLS_SPEC = [
 
 
 def _client() -> OpenAI:
+    """Return an OpenRouter-backed OpenAI client."""
     return OpenAI(base_url="https://openrouter.ai/api/v1", api_key=os.environ["OPENROUTER_API_KEY"])
 
 
 def _dispatch_tool(name: str, args: dict) -> str:
+    # Kept as a guard — callers must use _dispatch_tool_with_state so that
+    # RBAC checks are always applied before tool execution.
     raise RuntimeError("_dispatch_tool(state-aware) should be used instead")
 
 
 def _dispatch_tool_with_state(state: RAGState, name: str, args: dict) -> tuple[str, object]:
+    """Execute a tool call after verifying RBAC permissions.
+
+    Checks ``is_tool_allowed()`` first; if the role does not permit the tool,
+    returns an error JSON string without calling the underlying function.
+    For ``pubmed_search``, also verifies that ``"pubmed"`` is in ``allowed_sources``.
+
+    Args:
+        state: Current RAGState used for RBAC checks.
+        name: Tool function name as declared in ``TOOLS_SPEC``.
+        args: Keyword arguments parsed from the LLM's function call JSON.
+
+    Returns:
+        A tuple of ``(json_string, parsed_result)`` where ``json_string`` is
+        appended to the message history and ``parsed_result`` is used for
+        chunk collection and logging.
+    """
     if not is_tool_allowed(state, name):
         result = {"error": f"Tool '{name}' ist für die Rolle '{state.get('user_role', 'user')}' nicht erlaubt."}
         return json.dumps(result, ensure_ascii=False), result
@@ -149,6 +186,8 @@ def _dispatch_tool_with_state(state: RAGState, name: str, args: dict) -> tuple[s
     return json.dumps(result, ensure_ascii=False), result
 
 
+# Forces search_guidelines on iteration 1 regardless of GPT-4o's preference.
+# Without this the model might skip retrieval for seemingly simple questions.
 _FORCE_SEARCH = {"type": "function", "function": {"name": "search_guidelines"}}
 
 

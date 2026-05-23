@@ -1,7 +1,18 @@
+"""Confidence scoring node: decides whether retrieval quality is sufficient.
+
+Uses the CrossEncoder reranker scores stored on each retrieved chunk to compute
+a lightweight proxy for answer quality.  If confidence is too low, the graph
+routes to the ``escalate`` node which runs additional retrieval queries.
+"""
+
 from src.graph.state import RAGState
 from src.telemetry import append_rag_step
 
+# Minimum acceptable mean reranker score across the top-3 chunks.
+# Below this threshold the escalation node runs additional retrieval queries.
 CONFIDENCE_THRESHOLD = 0.5
+# Minimum number of retrieved chunks required before confidence is meaningful.
+# Fewer than this triggers escalation regardless of individual scores.
 LOW_RESULT_THRESHOLD = 2
 
 

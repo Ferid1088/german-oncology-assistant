@@ -1,3 +1,13 @@
+"""PubMed search tool: queries external literature via NCBI E-utilities.
+
+Uses a two-call pattern required by the E-utilities API:
+1. ``esearch`` — returns a list of PubMed IDs (PMIDs) matching the query.
+2. ``esummary`` — fetches title, authors, date, and source for each PMID.
+
+Results carry a ``PUBMED_DISCLOSURE`` label to make clear they are external
+sources outside the S3 guideline corpus.
+"""
+
 import os
 
 import httpx

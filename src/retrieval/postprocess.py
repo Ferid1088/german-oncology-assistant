@@ -1,3 +1,9 @@
+"""Post-processing utilities for retrieved chunk lists.
+
+Applied after reranking to deduplicate and limit the final result set before
+chunks are passed to the answer generation node.
+"""
+
 from math import inf
 
 

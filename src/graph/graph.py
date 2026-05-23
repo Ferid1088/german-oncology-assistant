@@ -1,3 +1,21 @@
+"""LangGraph state machine: wires all 12 nodes into the oncology RAG pipeline.
+
+``build_graph(checkpointer)`` returns a compiled ``StateGraph``.  Four nodes are
+defined as private functions here (prefixed ``_``) rather than in separate files
+because they contain no LLM calls and are short response-formatting helpers:
+- ``_blocked_response`` — returns the guardrail block reason as the final answer.
+- ``_clarification_response`` — returns a German clarification request.
+- ``_repeat_previous_answer_response`` — replays the prior turn's answer verbatim.
+- ``_multi_query_escalation`` — runs 4 retrieval query variants and merges results.
+
+Conditional routing functions (also defined here) determine which node to visit
+next based on state field values:
+- ``_route_after_guardrail`` — blocked vs. rewrite.
+- ``_route_after_rewrite`` — clarification / repeat_answer / turn_router.
+- ``needs_escalation`` (from confidence node) — escalate vs. answer.
+- ``_route_after_output`` — end vs. external_search.
+"""
+
 import re
 
 from langgraph.graph import StateGraph, END

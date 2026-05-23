@@ -1,3 +1,11 @@
+"""Drug class lookup tool: searches all oncology guidelines for a substance name.
+
+Runs ``search_guidelines_tool`` once per guideline and groups the results by
+guideline ID.  Useful when the agent needs a cross-guideline overview of how a
+drug or substance class is mentioned (e.g. comparing trastuzumab mentions across
+breast, lung, and colorectal guidelines).
+"""
+
 from collections import defaultdict
 
 from src.tools.search_guidelines import search_guidelines_tool
@@ -9,6 +17,7 @@ def drug_class_lookup_tool(
 ) -> dict:
     """Find mentions of a drug across guidelines and group them by guideline/grade."""
     grouped: dict[str, list[dict]] = defaultdict(list)
+    # Hardcoded to the four indexed oncology guidelines; expand if more are added.
     for guideline_id in ["mamma", "krk", "lunge", "prosta"]:
         hits = search_guidelines_tool(
             query=substance_name,

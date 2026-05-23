@@ -1,3 +1,11 @@
+"""Bibliography reference extraction and resolution for guideline PDFs.
+
+Provides three utilities:
+- ``extract_inline_refs`` — finds all ``[N]`` citation markers in a text block.
+- ``parse_bibliography`` — parses the reference list section into ``ReferenceEntry`` objects.
+- ``resolve_refs`` — cross-links inline citation IDs to their full bibliography entries.
+"""
+
 import re
 from dataclasses import dataclass
 
@@ -8,6 +16,16 @@ PUBMED_URL_RE = re.compile(r"https?://pubmed\.ncbi\.nlm\.nih\.gov/(\d+)")
 
 @dataclass
 class ReferenceEntry:
+    """A single bibliography entry parsed from a guideline PDF.
+
+    Attributes:
+        reference_id: The numeric string from the ``[N]`` bracket (e.g. "42").
+        raw_text: Full raw text of the bibliography line after the ``[N]`` prefix.
+        pubmed_id: PubMed article ID extracted from a pubmed.ncbi.nlm.nih.gov URL, or "".
+        pubmed_url: Full PubMed URL found in ``raw_text``, or "".
+        unresolved: True when an inline citation ID has no matching bibliography entry.
+    """
+
     reference_id: str
     raw_text: str
     pubmed_id: str = ""

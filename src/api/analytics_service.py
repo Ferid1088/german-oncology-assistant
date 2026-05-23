@@ -1,3 +1,14 @@
+"""Analytics aggregation service for the oncology RAG dashboard.
+
+Reads all conversations from ``ConversationStore`` and computes the overview metrics
+shown on the analytics dashboard:
+- Aggregate counters (total questions, tokens, cost, citation and tool usage rates).
+- Time-series data bucketed by UTC date (conversations, questions, answers per day).
+- Distribution tables for guidelines cited, tools called, and RAG pipeline step statuses.
+- Per-session summaries sorted by cost descending.
+- Current-session highlight when ``session_id`` is supplied.
+"""
+
 from __future__ import annotations
 
 from collections import Counter
@@ -7,6 +18,14 @@ from src.api.conversation_store import ConversationStore
 
 
 def _date_bucket(value: str | None) -> str:
+    """Convert an ISO 8601 timestamp string to a ``YYYY-MM-DD`` date string.
+
+    Args:
+        value: ISO 8601 datetime string, or ``None``.
+
+    Returns:
+        Date string, or ``"unknown"`` when parsing fails.
+    """
     if not value:
         return "unknown"
     try:
@@ -16,6 +35,15 @@ def _date_bucket(value: str | None) -> str:
 
 
 def _sort_counter(counter: Counter[str], *, limit: int | None = None) -> list[dict]:
+    """Sort a Counter by count descending (label ascending as tie-breaker) and format as a list of dicts.
+
+    Args:
+        counter: A ``Counter[str]`` of label → count mappings.
+        limit: Optional maximum number of items to return.
+
+    Returns:
+        List of ``{"label": str, "count": int}`` dicts, highest count first.
+    """
     items = sorted(counter.items(), key=lambda item: (-item[1], item[0]))
     if limit is not None:
         items = items[:limit]
@@ -23,6 +51,7 @@ def _sort_counter(counter: Counter[str], *, limit: int | None = None) -> list[di
 
 
 def _safe_int(value) -> int:
+    """Coerce a value to int, returning 0 on ``None``, empty string, or conversion failure."""
     try:
         return int(value or 0)
     except (TypeError, ValueError):
@@ -30,6 +59,7 @@ def _safe_int(value) -> int:
 
 
 def _safe_float(value) -> float:
+    """Coerce a value to float, returning 0.0 on ``None``, empty string, or conversion failure."""
     try:
         return float(value or 0.0)
     except (TypeError, ValueError):
@@ -37,12 +67,22 @@ def _safe_float(value) -> float:
 
 
 def _ratio(part: int, whole: int) -> float:
+    """Return ``part / whole`` rounded to 4 decimal places, or 0.0 when ``whole <= 0``."""
     if whole <= 0:
         return 0.0
     return round(part / whole, 4)
 
 
 def _session_summary(conversation: dict) -> dict:
+    """Compute per-conversation aggregate metrics for the session table.
+
+    Args:
+        conversation: Detailed conversation dict including all message payloads.
+
+    Returns:
+        A dict with ``session_id``, ``title``, timestamps, turn counts, token/cost
+        totals, citation and tool call totals, and ``external_search_turns``.
+    """
     messages = conversation.get("messages", []) if isinstance(conversation.get("messages", []), list) else []
     assistant_messages = [message for message in messages if message.get("role") == "assistant"]
     user_messages = [message for message in messages if message.get("role") == "user"]
@@ -70,6 +110,21 @@ def _session_summary(conversation: dict) -> dict:
 
 
 def build_analytics_overview(store: ConversationStore, *, session_id: str | None = None) -> dict:
+    """Build the full analytics overview payload served by ``GET /analytics/overview``.
+
+    Loads all conversations, iterates every message once, and aggregates all metrics
+    in a single pass.  No caching is applied — callers that need caching should wrap
+    this function.
+
+    Args:
+        store: The ``ConversationStore`` instance to read conversations from.
+        session_id: When provided, the matching session is highlighted as
+            ``current_session`` in the response payload.
+
+    Returns:
+        A dict with ``generated_at``, ``overview``, ``timeseries``, ``distributions``,
+        ``tables``, and ``current_session`` keys.
+    """
     conversations = store.list_conversations_detailed()
 
     total_questions = 0

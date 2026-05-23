@@ -1,3 +1,15 @@
+"""Structural detector for German S3 oncology guideline text.
+
+Scans cleaned plaintext line by line and emits a sequence of ``StructuralUnit``
+objects, each tagged with one of four kinds:
+- ``heading`` — numbered section header (e.g. "4.7.3 Adjuvante Chemotherapie").
+- ``empfehlung`` — a recommendation block including grade and evidence level.
+- ``bibliography_entry`` — a bracketed reference (e.g. "[42] Author …").
+- ``prose`` — any other contiguous non-empty text block.
+
+The parser is a simple one-pass state machine; no LLM is involved.
+"""
+
 import re
 from dataclasses import dataclass
 
@@ -13,6 +25,19 @@ BIB_RE = re.compile(r"^\[(\d+)\]\s*\S")
 
 @dataclass
 class StructuralUnit:
+    """A single classified text unit emitted by ``detect_structure``.
+
+    Attributes:
+        kind: Classification: "heading" | "empfehlung" | "bibliography_entry" | "prose".
+        text: The raw text content of the unit (multi-line for empfehlung blocks).
+        section_number: Dotted section number for headings (e.g. "4.7.3"); empty otherwise.
+        recommendation_id: Numeric id for empfehlung blocks (e.g. "4.7"); empty otherwise.
+        recommendation_grade: Extracted grade character "A", "B", or "0"; empty otherwise.
+        evidence_level: Extracted evidence level string (e.g. "1a"); empty otherwise.
+        reference_id: Numeric bibliography id string; empty unless kind == "bibliography_entry".
+        line_start: Zero-based line index in the joined document text (used for page mapping).
+    """
+
     kind: str                          # heading | empfehlung | bibliography_entry | prose
     text: str
     section_number: str = ""
@@ -24,6 +49,22 @@ class StructuralUnit:
 
 
 def detect_structure(text: str) -> list[StructuralUnit]:
+    """Classify every line of cleaned guideline text into ``StructuralUnit`` objects.
+
+    Processes the text in a single forward pass.  Priority order for each line:
+    1. Bibliography entry (``[N] …``) — once bibliography mode is active, all matching
+       lines are classified as bibliography entries.
+    2. Empfehlung block — greedily consumes continuation lines until a structural
+       boundary or blank line (after the header) is reached.
+    3. Heading — single-line classification.
+    4. Prose — accumulates until the next blank line or structural boundary.
+
+    Args:
+        text: Pre-cleaned, pre-normalized document text.
+
+    Returns:
+        Ordered list of ``StructuralUnit`` objects covering every non-empty line.
+    """
     lines = text.splitlines()
     units: list[StructuralUnit] = []
     i = 0
@@ -115,4 +156,15 @@ def detect_structure(text: str) -> list[StructuralUnit]:
 
 
 def _looks_like_bib(line: str) -> bool:
+    """Heuristic check for a bibliography entry without prior bibliography context.
+
+    Requires a bracketed number followed by at least one word and a 4-digit year,
+    to distinguish from inline citations like "[3]" that appear inside prose.
+
+    Args:
+        line: A single stripped text line.
+
+    Returns:
+        True when the line looks like the start of a bibliography section.
+    """
     return bool(re.match(r"^\[\d+\]\s+\w+.+\d{4}", line))

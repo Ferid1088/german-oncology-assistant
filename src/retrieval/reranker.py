@@ -1,3 +1,15 @@
+"""CrossEncoder reranker: re-scores retrieved chunks using a bi-encoder-free model.
+
+Uses ``BAAI/bge-reranker-v2-m3`` from sentence-transformers, which is a
+cross-encoder — it jointly encodes the query and each candidate passage and
+produces a more accurate relevance score than embedding cosine similarity alone.
+
+The reranker is loaded lazily on the first call and cached as a module-level
+singleton.  If the model fails to load (e.g. sentence-transformers not installed,
+CUDA OOM), a permanent ``_reranker_unavailable`` flag is set and all subsequent
+calls fall back to returning results in their original retrieval order.
+"""
+
 import logging
 import os
 
@@ -21,6 +33,12 @@ RERANKER_CANDIDATES = int(os.getenv("RERANKER_CANDIDATES", "12"))
 
 
 def _get_reranker():
+    """Return the cached CrossEncoder instance, loading it on first call.
+
+    Raises:
+        RuntimeError: If a previous load attempt failed (permanent failure).
+        Exception: Propagates the original load error and sets the unavailable flag.
+    """
     global _reranker, _reranker_unavailable
     if _reranker_unavailable:
         raise RuntimeError("Reranker disabled after previous load failure")
@@ -38,6 +56,22 @@ def rerank(
     chunks: list[RetrievedChunk],
     top_k: int = 5,
 ) -> list[RetrievedChunk]:
+    """Re-score and reorder *chunks* using the CrossEncoder reranker.
+
+    Caps the candidate pool at ``RERANKER_CANDIDATES`` (default 12) to keep
+    latency predictable — the pool is always ≥ top_k to avoid re-ranking fewer
+    candidates than requested.  Falls back gracefully if the reranker is
+    unavailable, returning the original retrieval-order top-k.
+
+    Args:
+        query: User query string (used as the left side of each (query, passage) pair).
+        chunks: Retrieved chunks in retrieval-score order.
+        top_k: Number of top-ranked chunks to return.
+
+    Returns:
+        Up to *top_k* chunks with their ``score`` field updated to the
+        CrossEncoder relevance score.  Returns retrieval-order top-k on failure.
+    """
     global _logged_unavailable
     if not chunks:
         return []
